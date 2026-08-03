@@ -97,6 +97,14 @@ mkdir -p "$BUILD"
 echo "== Fetching kernel source matching $KVER =="
 cd "$BUILD"
 if [[ ! -d linux-source ]]; then
+  # Clear any stale extracted source trees from earlier attempts in this
+  # same session (they don't survive a reboot on a live session, but can
+  # pile up across multiple script runs within one boot) — otherwise the
+  # mv below can match more than one directory and refuse to proceed.
+  # Only removes extracted directories, not the downloaded .orig.tar.gz/
+  # .dsc/.diff.gz files, so no re-download is needed.
+  find . -maxdepth 1 -type d -name 'linux-*' ! -name 'linux-source' -exec rm -rf {} +
+
   echo "-- Ensuring deb-src is enabled for archive/security.ubuntu.com --"
   sudo bash -c "
     grep -h '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null \
@@ -129,7 +137,15 @@ if [[ ! -d linux-source ]]; then
   fi
 
   if [[ "$FETCHED" -eq 1 ]]; then
-    mv linux-*/ linux-source
+    EXTRACTED_DIRS=(linux-*/)
+    if [[ "${#EXTRACTED_DIRS[@]}" -eq 1 && -d "${EXTRACTED_DIRS[0]}" ]]; then
+      mv "${EXTRACTED_DIRS[0]}" linux-source
+    else
+      echo "ERROR: expected exactly one extracted directory matching"
+      echo "'linux-*/' in $BUILD, found ${#EXTRACTED_DIRS[@]}: ${EXTRACTED_DIRS[*]}"
+      echo "Clean up $BUILD manually and re-run."
+      KSRC=""
+    fi
   else
     echo "Could not fetch kernel source at all for $KVER."
     echo "Check manually: apt-cache show linux-image-unsigned-$KVER"

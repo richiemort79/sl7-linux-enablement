@@ -18,6 +18,10 @@ mkdir -p "$BUILD"
 cd "$BUILD"
 
 if [[ ! -d "linux-source-$KVER" ]]; then
+  # Clear any stale extracted source trees from earlier attempts so the
+  # directory-match below can't collide with leftovers.
+  find . -maxdepth 1 -type d -name 'linux-*' ! -name "linux-source-$KVER" -exec rm -rf {} +
+
   sudo bash -c "
     grep -h '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null \
       | grep -E 'archive\.ubuntu\.com|security\.ubuntu\.com' \
@@ -41,7 +45,14 @@ if [[ ! -d "linux-source-$KVER" ]]; then
   fi
 
   if [[ "$FETCHED" -eq 1 ]]; then
-    mv linux-*/ "linux-source-$KVER"
+    EXTRACTED_DIRS=(linux-*/)
+    if [[ "${#EXTRACTED_DIRS[@]}" -eq 1 && -d "${EXTRACTED_DIRS[0]}" ]]; then
+      mv "${EXTRACTED_DIRS[0]}" "linux-source-$KVER"
+    else
+      echo "ERROR: expected exactly one extracted directory, found"
+      echo "${#EXTRACTED_DIRS[@]}: ${EXTRACTED_DIRS[*]}. Clean up $BUILD manually."
+      exit 1
+    fi
   else
     echo "Could not fetch kernel source for $KVER."
     echo "Check manually: apt-cache show linux-image-unsigned-$KVER"
