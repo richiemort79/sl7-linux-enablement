@@ -80,7 +80,9 @@ sudo apt update
 sudo apt install -y \
   linux-headers-"$KVER" build-essential git meson ninja-build \
   libevdev-dev libudev-dev pkg-config libspdlog-dev nlohmann-json3-dev \
-  libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev libxext-dev \
+  libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev \
+  libxext-dev libxi-dev libxrandr-dev libxss-dev libxcursor-dev \
+  libxinerama-dev libxfixes-dev \
   flex bison libssl-dev libelf-dev bc libdw-dev dwarves rsync cpio kmod
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
