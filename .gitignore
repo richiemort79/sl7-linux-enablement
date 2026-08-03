@@ -1,0 +1,4 @@
+.build/
+iptsd-fork/iptsd/
+*.ko
+*.o

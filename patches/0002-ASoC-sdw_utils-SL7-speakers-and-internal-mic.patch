@@ -1,0 +1,247 @@
+--- a/sound/soc/sdw_utils/soc_sdw_utils.c
++++ b/sound/soc/sdw_utils/soc_sdw_utils.c
+@@ -320,8 +320,21 @@
+ 				.widgets = generic_spk_widgets,
+ 				.num_widgets = ARRAY_SIZE(generic_spk_widgets),
+ 			},
++			{
++				/* Backport from master: RT1320 DMIC inputs (DP8/DP10).
++				 * The Surface Laptop 7 internal mic array hangs off
++				 * the amp (ACPI SmartMic function, dev_id 0x6981). */
++				.direction = {false, true},
++				.dai_name = "rt1320-aif2",
++				.component_name = "rt1320",
++				.dai_type = SOC_SDW_DAI_TYPE_MIC,
++				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
++				.rtd_init = asoc_sdw_rt_dmic_rtd_init,
++				.widgets = generic_dmic_widgets,
++				.num_widgets = ARRAY_SIZE(generic_dmic_widgets),
++			},
+ 		},
+-		.dai_num = 1,
++		.dai_num = 2,
+ 	},
+ 	{
+ 		.part_id = 0x1321,
+@@ -1421,14 +1434,29 @@
+ 	const struct snd_soc_acpi_adr_device *adr_dev = &adr_link->adr_d[adr_index];
+ 	const struct snd_soc_acpi_endpoint *adr_end;
+ 	const struct asoc_sdw_dai_info *dai_info;
++	struct snd_soc_dai_link_component *dlc;
++	struct snd_soc_dai *codec_dai;
+ 	struct sdw_slave *slave;
+ 	struct device *sdw_dev;
+ 	const char *sdw_codec_name;
+ 	int ret, i;
+ 
++	dlc = kzalloc(sizeof(*dlc), GFP_KERNEL);
++	if (!dlc)
++		return -ENOMEM;
++
+ 	adr_end = &adr_dev->endpoints[end_index];
+ 	dai_info = &codec_info->dais[adr_end->num];
+ 
++	dlc->dai_name = dai_info->dai_name;
++	codec_dai = snd_soc_find_dai_with_mutex(dlc);
++	if (!codec_dai) {
++		dev_warn(dev, "codec dai %s not registered yet\n", dlc->dai_name);
++		kfree(dlc);
++		return -EPROBE_DEFER;
++	}
++	kfree(dlc);
++
+ 	sdw_codec_name = _asoc_sdw_get_codec_name(dev, adr_link, adr_index);
+ 	if (!sdw_codec_name)
+ 		return -ENOMEM;
+@@ -1470,6 +1498,54 @@
+ 	return ret;
+ }
+ 
++/*
++ * Surface Laptop 7: the BIOS declares two RT1320 amps on link 0, but only one
++ * ever answers SoundWire enumeration (same unique_id, only the class_id
++ * differs). Building the ghost into the DAI link makes
++ * snd_soc_link_prepare() fail and breaks all speaker output.
++ * So skip any ACPI-declared peripheral that is not attached to the bus.
++ */
++struct asoc_sdw_adr_probe {
++	u64 adr;
++	bool attached;
++};
++
++static int asoc_sdw_adr_probe_fn(struct device *dev, void *data)
++{
++	struct asoc_sdw_adr_probe *probe = data;
++	struct sdw_slave *slave;
++
++	if (!is_sdw_slave(dev))
++		return 0;
++
++	slave = dev_to_sdw_dev(dev);
++
++	if (slave->id.mfg_id != SDW_MFG_ID(probe->adr) ||
++	    slave->id.part_id != SDW_PART_ID(probe->adr) ||
++	    slave->id.class_id != SDW_CLASS_ID(probe->adr))
++		return 0;
++
++	/* 0xf is a wildcard in the _ADR unique_id field */
++	if (SDW_UNIQUE_ID(probe->adr) != 0xf &&
++	    slave->id.unique_id != SDW_UNIQUE_ID(probe->adr))
++		return 0;
++
++	if (slave->status != SDW_SLAVE_UNATTACHED)
++		probe->attached = true;
++
++	return 1;
++}
++
++static bool asoc_sdw_adr_is_attached(u64 adr)
++{
++	struct asoc_sdw_adr_probe probe = { .adr = adr, .attached = false };
++
++	if (!bus_for_each_dev(&sdw_bus_type, NULL, &probe, asoc_sdw_adr_probe_fn))
++		return true;	/* no matching device on the bus: change nothing */
++
++	return probe.attached;
++}
++
+ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
+ 				 struct snd_soc_aux_dev *soc_aux,
+ 				 struct asoc_sdw_dailink *soc_dais,
+@@ -1482,6 +1558,8 @@
+ 	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
+ 	const struct snd_soc_acpi_link_adr *adr_link;
+ 	struct asoc_sdw_endpoint *soc_end = soc_ends;
++	const char *dev_prefix;
++	int amp_renum = 0;
+ 	int num_dais = 0;
+ 	int i, j;
+ 	int ret;
+@@ -1507,10 +1585,33 @@
+ 				return -EINVAL;
+ 			}
+ 
++			if (!asoc_sdw_adr_is_attached(adr_dev->adr)) {
++				dev_warn(dev,
++					 "codec 0x%llx declared but not attached, skipping\n",
++					 adr_dev->adr);
++				continue;
++			}
++
+ 			codec_info = asoc_sdw_find_codec_info_part(adr_dev->adr);
+ 			if (!codec_info)
+ 				return -EINVAL;
+ 
++			/* With the MIC DAI added, hda.c no longer numbers the
++			 * rt1320 (it only numbers purely-amp codecs), but the
++			 * amp route init and UCM both require a -1/-2 suffix.
++			 * Renumber attached amps here, once per device, in
++			 * order; ghost devices have already been filtered
++			 * out above. */
++			dev_prefix = adr_dev->name_prefix;
++			if (codec_info->dais[0].dai_type == SOC_SDW_DAI_TYPE_AMP &&
++			    !strcmp(adr_dev->name_prefix, codec_info->name_prefix)) {
++				dev_prefix = devm_kasprintf(dev, GFP_KERNEL, "%s-%d",
++							    codec_info->name_prefix,
++							    ++amp_renum);
++				if (!dev_prefix)
++					return -ENOMEM;
++			}
++
+ 			for (j = 0; j < codec_info->aux_num; j++) {
+ 				soc_aux->dlc.name = codec_info->auxs[j].codec_name;
+ 				soc_aux++;
+@@ -1617,7 +1718,7 @@
+ 				dev_dbg(dev, "Adding prefix %s for %s\n",
+ 					adr_dev->name_prefix, codec_name);
+ 
+-				soc_end->name_prefix = adr_dev->name_prefix;
++				soc_end->name_prefix = dev_prefix;
+ 
+ 				soc_end->link_mask = adr_link->mask;
+ 				soc_end->codec_name = codec_name;
+@@ -1627,7 +1728,12 @@
+ 			}
+ 		}
+ 
+-		ctx->append_dai_type |= (num_link_dailinks > 1);
++		/* Force the DAI type suffix in link names, otherwise
++		 * sof_sdw_get_tplg_files() cannot match SmartAmp/SimpleJack
++		 * and no SDCA topology is loaded (no speakers, no mic).
++		 */
++		ctx->append_dai_type = true;
++		(void)num_link_dailinks;
+ 	}
+ 
+ 	return num_dais;
+--- a/sound/soc/sdw_utils/soc_sdw_rt_dmic.c
++++ b/sound/soc/sdw_utils/soc_sdw_rt_dmic.c
+@@ -9,15 +9,20 @@
+ 
+ #include <linux/device.h>
+ #include <linux/errno.h>
++#include <linux/soundwire/sdw.h>
++#include <linux/soundwire/sdw_type.h>
+ #include <sound/soc.h>
+ #include <sound/soc-acpi.h>
+ #include <sound/soc_sdw_utils.h>
++#include <sound/sdca_function.h>
+ 
+ int asoc_sdw_rt_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
+ {
+ 	struct snd_soc_card *card = rtd->card;
+ 	struct snd_soc_component *component;
++	struct sdw_slave *sdw_peripheral = NULL;
+ 	char *mic_name;
++	int rt1320_dmic_num = 0, part_id, i;
+ 
+ 	component = dai->component;
+ 
+@@ -32,9 +37,44 @@
+ 	if (!mic_name)
+ 		return -ENOMEM;
+ 
+-	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+-					  "%s mic:%s", card->components,
+-					  mic_name);
++	/*
++	 * If there is any rt1320/rt1321 DMIC belonging to this card, try to count the `cfg-mics`
++	 * to be used in card->components.
++	 * Note: The rt1320 drivers register the peripheral dev to component->dev, so get the
++	 * sdw_peripheral from component->dev.
++	 */
++	if (is_sdw_slave(component->dev))
++		sdw_peripheral = dev_to_sdw_dev(component->dev);
++	if (sdw_peripheral &&
++	    (sdw_peripheral->id.part_id == 0x1320 || sdw_peripheral->id.part_id == 0x1321)) {
++		part_id = sdw_peripheral->id.part_id;
++		/*
++		 * This rtd init callback is called once, so count the rt1320/rt1321 with SDCA
++		 * function SmartMic type in this card.
++		 */
++		for_each_card_components(card, component) {
++			if (!is_sdw_slave(component->dev))
++				continue;
++			sdw_peripheral = dev_to_sdw_dev(component->dev);
++			if (sdw_peripheral->id.part_id != part_id)
++				continue;
++			for (i = 0; i < sdw_peripheral->sdca_data.num_functions; i++) {
++				if (sdw_peripheral->sdca_data.function[i].type ==
++				    SDCA_FUNCTION_TYPE_SMART_MIC) {
++					rt1320_dmic_num++;
++					break;
++				}
++			}
++		}
++		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
++						  "%s mic:%s cfg-mics:%d", card->components,
++						  mic_name, rt1320_dmic_num);
++	} else {
++		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
++						  "%s mic:%s", card->components,
++						  mic_name);
++	}
++
+ 	if (!card->components)
+ 		return -ENOMEM;
+ 
