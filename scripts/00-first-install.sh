@@ -218,7 +218,7 @@ ninja -C build
 # distro's stock iptsd package at /usr/bin/iptsd. This matches the actual
 # etc/systemd/system/iptsd@.service.d/fork.conf shipped in configs/, which
 # points ExecStart at /usr/local/bin/iptsd-fork.
-BUILT_BIN="$(find build -maxdepth 1 -type f -name iptsd -executable | head -1)"
+BUILT_BIN="$(find build -type f -name iptsd -executable | head -1)"
 if [[ -z "$BUILT_BIN" ]]; then
   echo "Could not find built iptsd binary in build/ — check the meson build"
   echo "output above and adjust this step manually."
