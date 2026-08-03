@@ -11,7 +11,7 @@ KVER="$(uname -r)"
 
 echo "Rebuilding modules for kernel $KVER"
 
-sudo apt install -y linux-headers-"$KVER" flex bison libssl-dev libelf-dev bc
+sudo apt install -y linux-headers-"$KVER" flex bison libssl-dev libelf-dev bc libdw-dev dwarves rsync cpio kmod
 sudo apt-mark hold linux-image-"$KVER" linux-headers-"$KVER" || true
 
 mkdir -p "$BUILD"

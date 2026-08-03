@@ -81,7 +81,7 @@ sudo apt install -y \
   linux-headers-"$KVER" build-essential git meson ninja-build \
   libevdev-dev libudev-dev pkg-config libspdlog-dev nlohmann-json3-dev \
   libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev \
-  flex bison libssl-dev libelf-dev bc
+  flex bison libssl-dev libelf-dev bc libdw-dev dwarves rsync cpio kmod
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
   echo "== Pinning current kernel so it won't move under us =="
