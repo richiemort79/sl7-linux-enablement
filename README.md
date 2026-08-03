@@ -84,7 +84,10 @@ something hangs.
 
 ## License note
 
-Patches 0001-0003 modify Linux kernel sources (GPL-2.0). Patch 0004 is under
-iptsd's license (GPL-2.0-or-later). Config files here are public domain
-(CC0). Nothing in this repo contains Microsoft code, firmware, or ACPI table
-dumps — those are not redistributable and are not included.
+See `LICENSE.md` for the full breakdown (patches 0001-0003 are GPL-2.0,
+patch 0004 is GPL-2.0-or-later, configs/ and scripts/ are CC0). Nothing in
+this repo contains Microsoft code, firmware, or ACPI table dumps — those
+are not redistributable and are not included.
+
+See `CONTRIBUTING.md` if you want to help get any of this upstreamed into
+`linux-surface/kernel`, alsa-devel, or mainline media/ASoC.
