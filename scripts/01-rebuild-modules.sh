@@ -18,8 +18,6 @@ mkdir -p "$BUILD"
 cd "$BUILD"
 
 if [[ ! -d "linux-source-$KVER" ]]; then
-  KVER_FULL="$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null || true)"
-
   sudo bash -c "
     grep -h '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null \
       | grep -E 'archive\.ubuntu\.com|security\.ubuntu\.com' \
@@ -27,20 +25,26 @@ if [[ ! -d "linux-source-$KVER" ]]; then
   "
   sudo apt update
 
+  SRC_LINE="$(apt-cache show linux-image-unsigned-"$KVER" 2>/dev/null | awk -F': ' '/^Source:/{print $2; exit}')"
+  SRC_NAME="$(echo "$SRC_LINE" | awk '{print $1}')"
+  SRC_VER="$(echo "$SRC_LINE" | grep -oP '\(\K[^)]+')"
+  SRC_VER="${SRC_VER:-$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null)}"
+
+  echo "Resolved source package: ${SRC_NAME:-unknown} version ${SRC_VER:-unknown}"
+
   FETCHED=0
-  if [[ -n "$KVER_FULL" ]] && apt source linux-image-unsigned-"$KVER"="$KVER_FULL" 2>/dev/null; then
+  if [[ -n "$SRC_NAME" && -n "$SRC_VER" ]] && apt source "$SRC_NAME"="$SRC_VER" 2>/dev/null; then
     FETCHED=1
-  elif apt source linux-image-unsigned-"$KVER" 2>/dev/null; then
+  elif [[ -n "$SRC_NAME" ]] && apt source "$SRC_NAME" 2>/dev/null; then
+    echo "WARNING: could not pin exact version — fetched latest instead."
     FETCHED=1
   fi
 
   if [[ "$FETCHED" -eq 1 ]]; then
     mv linux-*/ "linux-source-$KVER"
   else
-    echo "Could not fetch matching kernel source for $KVER ($KVER_FULL)."
-    echo "Find the right source package name with:"
-    echo "  apt-cache showsrc linux-image-unsigned-$KVER | head -5"
-    echo "then: apt source <name>=$KVER_FULL"
+    echo "Could not fetch kernel source for $KVER."
+    echo "Check manually: apt-cache show linux-image-unsigned-$KVER"
     exit 1
   fi
 fi

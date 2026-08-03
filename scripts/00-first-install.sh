@@ -94,11 +94,6 @@ mkdir -p "$BUILD"
 echo "== Fetching kernel source matching $KVER =="
 cd "$BUILD"
 if [[ ! -d linux-source ]]; then
-  # apt source needs deb-src lines, which Zorin/Ubuntu don't enable by
-  # default, and needs the EXACT installed version pinned or it can miss
-  # the right one (point releases move fast). Derive both from the system.
-  KVER_FULL="$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null || true)"
-
   echo "-- Ensuring deb-src is enabled for archive/security.ubuntu.com --"
   sudo bash -c "
     grep -h '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null \
@@ -107,21 +102,35 @@ if [[ ! -d linux-source ]]; then
   "
   sudo apt update
 
+  # Read the actual Source: field (name + exact version) rather than
+  # guessing at "apt source pkg=version" syntax, which does not reliably
+  # resolve the source version when the binary->source name differs
+  # (e.g. linux-image-unsigned-X-generic -> linux-hwe-6.17). Format is
+  # either "Source: name" or "Source: name (version)".
+  SRC_LINE="$(apt-cache show linux-image-unsigned-"$KVER" 2>/dev/null | awk -F': ' '/^Source:/{print $2; exit}')"
+  SRC_NAME="$(echo "$SRC_LINE" | awk '{print $1}')"
+  SRC_VER="$(echo "$SRC_LINE" | grep -oP '\(\K[^)]+')"
+  # If no explicit version in parens, source version == binary version
+  SRC_VER="${SRC_VER:-$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null)}"
+
+  echo "Resolved source package: ${SRC_NAME:-unknown} version ${SRC_VER:-unknown}"
+
   FETCHED=0
-  if [[ -n "$KVER_FULL" ]] && apt source linux-image-unsigned-"$KVER"="$KVER_FULL" 2>/dev/null; then
+  if [[ -n "$SRC_NAME" && -n "$SRC_VER" ]] && apt source "$SRC_NAME"="$SRC_VER" 2>/dev/null; then
     FETCHED=1
-  elif apt source linux-image-unsigned-"$KVER" 2>/dev/null; then
+  elif [[ -n "$SRC_NAME" ]] && apt source "$SRC_NAME" 2>/dev/null; then
+    echo "WARNING: could not pin exact version $SRC_VER — fetched latest"
+    echo "available source for $SRC_NAME instead. Patches may not apply"
+    echo "cleanly if this drifted far from your running kernel."
     FETCHED=1
   fi
 
   if [[ "$FETCHED" -eq 1 ]]; then
     mv linux-*/ linux-source
   else
-    echo "Still couldn't fetch an exact source match for $KVER ($KVER_FULL)."
-    echo "Find the right source package name with:"
-    echo "  apt-cache showsrc linux-image-unsigned-$KVER | head -5"
-    echo "then: apt source <name>=$KVER_FULL"
-    echo "Skipping automatic kernel module build for now."
+    echo "Could not fetch kernel source at all for $KVER."
+    echo "Check manually: apt-cache show linux-image-unsigned-$KVER"
+    echo "Skipping automatic kernel module build."
     KSRC=""
   fi
 fi
