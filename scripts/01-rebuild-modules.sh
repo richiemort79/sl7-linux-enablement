@@ -74,6 +74,14 @@ done
 
 make olddefconfig
 make modules_prepare
+
+if [[ -f /usr/src/linux-headers-"$KVER"/Module.symvers ]]; then
+  cp /usr/src/linux-headers-"$KVER"/Module.symvers Module.symvers
+else
+  echo "WARNING: Module.symvers not found at /usr/src/linux-headers-$KVER/."
+  echo "modpost may fail with undefined-symbol errors without it."
+fi
+
 [[ "${PATCH_OK[0001]}" -eq 1 ]] && make M=drivers/platform/surface
 [[ "${PATCH_OK[0002]}" -eq 1 ]] && make M=sound/soc/sdw_utils
 [[ "${PATCH_OK[0003]}" -eq 1 ]] && make M=drivers/media/i2c

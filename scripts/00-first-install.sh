@@ -167,6 +167,19 @@ if [[ -n "$KSRC" && -d "$KSRC" ]]; then
   echo "== Building whichever out-of-tree modules patched cleanly =="
   make olddefconfig
   make modules_prepare
+
+  # modpost needs Module.symvers to resolve symbols against the actual
+  # running kernel's exports. A freshly fetched source tree that's never
+  # been fully built doesn't have one; the installed linux-headers package
+  # ships the real one for the running kernel, so use that instead of
+  # building a full kernel just to generate it.
+  if [[ -f /usr/src/linux-headers-"$KVER"/Module.symvers ]]; then
+    cp /usr/src/linux-headers-"$KVER"/Module.symvers Module.symvers
+  else
+    echo "WARNING: Module.symvers not found at /usr/src/linux-headers-$KVER/."
+    echo "modpost may fail with undefined-symbol errors without it."
+  fi
+
   [[ "${PATCH_OK[0001]}" -eq 1 ]] && make M=drivers/platform/surface
   [[ "${PATCH_OK[0002]}" -eq 1 ]] && make M=sound/soc/sdw_utils
   [[ "${PATCH_OK[0003]}" -eq 1 ]] && make M=drivers/media/i2c
