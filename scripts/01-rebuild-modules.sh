@@ -27,7 +27,7 @@ if [[ ! -d "linux-source-$KVER" ]]; then
 
   SRC_LINE="$(apt-cache show linux-image-unsigned-"$KVER" 2>/dev/null | awk -F': ' '/^Source:/{print $2; exit}')"
   SRC_NAME="$(echo "$SRC_LINE" | awk '{print $1}')"
-  SRC_VER="$(echo "$SRC_LINE" | grep -oP '\(\K[^)]+')"
+  SRC_VER="$(echo "$SRC_LINE" | grep -oP '\(\K[^)]+' || true)"
   SRC_VER="${SRC_VER:-$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null)}"
 
   echo "Resolved source package: ${SRC_NAME:-unknown} version ${SRC_VER:-unknown}"
@@ -51,21 +51,37 @@ fi
 
 cd "linux-source-$KVER"
 
+declare -A PATCH_OK
 for p in 0001 0002 0003; do
   patchfile=$(ls "$PATCHDIR/${p}"*.patch)
-  patch -p1 --forward -r /dev/null < "$patchfile" || true
+  echo "-- dry run: $patchfile"
+  if patch -p1 --dry-run < "$patchfile"; then
+    PATCH_OK[$p]=1
+  else
+    PATCH_OK[$p]=0
+    echo "WARNING: $patchfile did not apply cleanly. Skipping this"
+    echo "patch/module; the others will still be attempted."
+  fi
+done
+
+for p in 0001 0002 0003; do
+  if [[ "${PATCH_OK[$p]}" -eq 1 ]]; then
+    patchfile=$(ls "$PATCHDIR/${p}"*.patch)
+    echo "-- applying: $patchfile"
+    patch -p1 < "$patchfile"
+  fi
 done
 
 make olddefconfig
 make modules_prepare
-make M=drivers/platform/surface
-make M=sound/soc/sdw_utils
-make M=drivers/media/i2c
+[[ "${PATCH_OK[0001]}" -eq 1 ]] && make M=drivers/platform/surface
+[[ "${PATCH_OK[0002]}" -eq 1 ]] && make M=sound/soc/sdw_utils
+[[ "${PATCH_OK[0003]}" -eq 1 ]] && make M=drivers/media/i2c
 
 sudo mkdir -p /lib/modules/"$KVER"/updates
-sudo cp drivers/platform/surface/surface_aggregator_registry.ko /lib/modules/"$KVER"/updates/
-sudo cp sound/soc/sdw_utils/snd-soc-sdw-utils.ko /lib/modules/"$KVER"/updates/
-sudo cp drivers/media/i2c/ov02c10.ko /lib/modules/"$KVER"/updates/
+[[ "${PATCH_OK[0001]}" -eq 1 ]] && sudo cp drivers/platform/surface/surface_aggregator_registry.ko /lib/modules/"$KVER"/updates/
+[[ "${PATCH_OK[0002]}" -eq 1 ]] && sudo cp sound/soc/sdw_utils/snd-soc-sdw-utils.ko /lib/modules/"$KVER"/updates/
+[[ "${PATCH_OK[0003]}" -eq 1 ]] && sudo cp drivers/media/i2c/ov02c10.ko /lib/modules/"$KVER"/updates/
 sudo depmod -a
 
 echo "Done. Reboot to load the rebuilt modules."

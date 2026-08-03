@@ -109,7 +109,7 @@ if [[ ! -d linux-source ]]; then
   # either "Source: name" or "Source: name (version)".
   SRC_LINE="$(apt-cache show linux-image-unsigned-"$KVER" 2>/dev/null | awk -F': ' '/^Source:/{print $2; exit}')"
   SRC_NAME="$(echo "$SRC_LINE" | awk '{print $1}')"
-  SRC_VER="$(echo "$SRC_LINE" | grep -oP '\(\K[^)]+')"
+  SRC_VER="$(echo "$SRC_LINE" | grep -oP '\(\K[^)]+' || true)"
   # If no explicit version in parens, source version == binary version
   SRC_VER="${SRC_VER:-$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null)}"
 
@@ -140,31 +140,48 @@ if [[ -n "$KSRC" && -d "$KSRC" ]]; then
   cd "$KSRC"
 
   echo "== Applying kernel patches (dry run first) =="
+  declare -A PATCH_OK
   for p in 0001 0002 0003; do
     patchfile=$(ls "$PATCHDIR/${p}"*.patch)
     echo "-- dry run: $patchfile"
-    patch -p1 --dry-run < "$patchfile"
+    if patch -p1 --dry-run < "$patchfile"; then
+      PATCH_OK[$p]=1
+    else
+      PATCH_OK[$p]=0
+      echo "WARNING: $patchfile did not apply cleanly against this kernel"
+      echo "source (see hunk failures above — likely a version mismatch"
+      echo "between the fetched source and your running kernel). Skipping"
+      echo "just this patch/module; the others will still be attempted."
+    fi
   done
 
   for p in 0001 0002 0003; do
-    patchfile=$(ls "$PATCHDIR/${p}"*.patch)
-    echo "-- applying: $patchfile"
-    patch -p1 < "$patchfile"
+    if [[ "${PATCH_OK[$p]}" -eq 1 ]]; then
+      patchfile=$(ls "$PATCHDIR/${p}"*.patch)
+      echo "-- applying: $patchfile"
+      patch -p1 < "$patchfile"
+    fi
   done
 
-  echo "== Building the 3 out-of-tree modules =="
+  echo "== Building whichever out-of-tree modules patched cleanly =="
   make olddefconfig
   make modules_prepare
-  make M=drivers/platform/surface
-  make M=sound/soc/sdw_utils
-  make M=drivers/media/i2c
+  [[ "${PATCH_OK[0001]}" -eq 1 ]] && make M=drivers/platform/surface
+  [[ "${PATCH_OK[0002]}" -eq 1 ]] && make M=sound/soc/sdw_utils
+  [[ "${PATCH_OK[0003]}" -eq 1 ]] && make M=drivers/media/i2c
 
-  echo "== Installing modules =="
+  echo "== Installing modules that built =="
   sudo mkdir -p /lib/modules/"$KVER"/updates
-  sudo cp drivers/platform/surface/surface_aggregator_registry.ko /lib/modules/"$KVER"/updates/
-  sudo cp sound/soc/sdw_utils/snd-soc-sdw-utils.ko /lib/modules/"$KVER"/updates/
-  sudo cp drivers/media/i2c/ov02c10.ko /lib/modules/"$KVER"/updates/
+  [[ "${PATCH_OK[0001]}" -eq 1 ]] && sudo cp drivers/platform/surface/surface_aggregator_registry.ko /lib/modules/"$KVER"/updates/
+  [[ "${PATCH_OK[0002]}" -eq 1 ]] && sudo cp sound/soc/sdw_utils/snd-soc-sdw-utils.ko /lib/modules/"$KVER"/updates/
+  [[ "${PATCH_OK[0003]}" -eq 1 ]] && sudo cp drivers/media/i2c/ov02c10.ko /lib/modules/"$KVER"/updates/
   sudo depmod -a
+
+  if [[ "${PATCH_OK[0001]}" -eq 0 || "${PATCH_OK[0002]}" -eq 0 || "${PATCH_OK[0003]}" -eq 0 ]]; then
+    echo "NOTE: one or more patches were skipped above due to hunk"
+    echo "failures. Those modules were not built. See scripts/01-rebuild-"
+    echo "modules.sh or fetch an exact-matching kernel source to retry."
+  fi
 else
   echo "Skipped kernel module build (no matching source tree found)."
   echo "Re-run scripts/01-rebuild-modules.sh once KSRC is set correctly."
