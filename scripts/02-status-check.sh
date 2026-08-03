@@ -44,7 +44,7 @@ fi
 
 echo
 echo "== Audio (SOF / SoundWire) =="
-dmesg | grep -i "sof-audio-pci-intel-lnl" | tail -5
+sudo dmesg 2>/dev/null | grep -i "sof-audio-pci-intel-lnl" | tail -5
 if aplay -l 2>/dev/null | grep -qi "sof"; then
   echo "OK   SOF card visible in aplay -l"
 else

@@ -79,7 +79,8 @@ echo "== Installing build dependencies =="
 sudo apt update
 sudo apt install -y \
   linux-headers-"$KVER" build-essential git meson ninja-build \
-  libevdev-dev libudev-dev pkg-config libspdlog-dev nlohmann-json3-dev
+  libevdev-dev libudev-dev pkg-config libspdlog-dev nlohmann-json3-dev \
+  libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
   echo "== Pinning current kernel so it won't move under us =="
@@ -93,12 +94,34 @@ mkdir -p "$BUILD"
 echo "== Fetching kernel source matching $KVER =="
 cd "$BUILD"
 if [[ ! -d linux-source ]]; then
-  if apt source linux-image-unsigned-"$KVER" 2>/dev/null; then
+  # apt source needs deb-src lines, which Zorin/Ubuntu don't enable by
+  # default, and needs the EXACT installed version pinned or it can miss
+  # the right one (point releases move fast). Derive both from the system.
+  KVER_FULL="$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null || true)"
+
+  echo "-- Ensuring deb-src is enabled for archive/security.ubuntu.com --"
+  sudo bash -c "
+    grep -h '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null \
+      | grep -E 'archive\.ubuntu\.com|security\.ubuntu\.com' \
+      | sed 's/^deb /deb-src /' | sort -u > /etc/apt/sources.list.d/99-kernel-src.list
+  "
+  sudo apt update
+
+  FETCHED=0
+  if [[ -n "$KVER_FULL" ]] && apt source linux-image-unsigned-"$KVER"="$KVER_FULL" 2>/dev/null; then
+    FETCHED=1
+  elif apt source linux-image-unsigned-"$KVER" 2>/dev/null; then
+    FETCHED=1
+  fi
+
+  if [[ "$FETCHED" -eq 1 ]]; then
     mv linux-*/ linux-source
   else
-    echo "apt source failed to find an exact match for $KVER."
-    echo "You'll need to manually point KSRC at a matching kernel tree."
-    echo "Skipping automatic kernel module build."
+    echo "Still couldn't fetch an exact source match for $KVER ($KVER_FULL)."
+    echo "Find the right source package name with:"
+    echo "  apt-cache showsrc linux-image-unsigned-$KVER | head -5"
+    echo "then: apt source <name>=$KVER_FULL"
+    echo "Skipping automatic kernel module build for now."
     KSRC=""
   fi
 fi

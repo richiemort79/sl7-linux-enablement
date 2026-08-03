@@ -18,12 +18,29 @@ mkdir -p "$BUILD"
 cd "$BUILD"
 
 if [[ ! -d "linux-source-$KVER" ]]; then
-  if apt source linux-image-unsigned-"$KVER" 2>/dev/null; then
+  KVER_FULL="$(dpkg-query -W -f='${Version}' linux-headers-"$KVER" 2>/dev/null || true)"
+
+  sudo bash -c "
+    grep -h '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null \
+      | grep -E 'archive\.ubuntu\.com|security\.ubuntu\.com' \
+      | sed 's/^deb /deb-src /' | sort -u > /etc/apt/sources.list.d/99-kernel-src.list
+  "
+  sudo apt update
+
+  FETCHED=0
+  if [[ -n "$KVER_FULL" ]] && apt source linux-image-unsigned-"$KVER"="$KVER_FULL" 2>/dev/null; then
+    FETCHED=1
+  elif apt source linux-image-unsigned-"$KVER" 2>/dev/null; then
+    FETCHED=1
+  fi
+
+  if [[ "$FETCHED" -eq 1 ]]; then
     mv linux-*/ "linux-source-$KVER"
   else
-    echo "Could not fetch matching kernel source for $KVER."
-    echo "Point this script at the right tree manually and re-run, or"
-    echo "adapt KSRC below."
+    echo "Could not fetch matching kernel source for $KVER ($KVER_FULL)."
+    echo "Find the right source package name with:"
+    echo "  apt-cache showsrc linux-image-unsigned-$KVER | head -5"
+    echo "then: apt source <name>=$KVER_FULL"
     exit 1
   fi
 fi
