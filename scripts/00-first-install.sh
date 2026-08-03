@@ -80,7 +80,8 @@ sudo apt update
 sudo apt install -y \
   linux-headers-"$KVER" build-essential git meson ninja-build \
   libevdev-dev libudev-dev pkg-config libspdlog-dev nlohmann-json3-dev \
-  libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev
+  libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev \
+  flex bison libssl-dev libelf-dev bc
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
   echo "== Pinning current kernel so it won't move under us =="
@@ -144,7 +145,7 @@ if [[ -n "$KSRC" && -d "$KSRC" ]]; then
   for p in 0001 0002 0003; do
     patchfile=$(ls "$PATCHDIR/${p}"*.patch)
     echo "-- dry run: $patchfile"
-    if patch -p1 --dry-run < "$patchfile"; then
+    if patch -p1 --forward --dry-run < "$patchfile"; then
       PATCH_OK[$p]=1
     else
       PATCH_OK[$p]=0
@@ -159,7 +160,7 @@ if [[ -n "$KSRC" && -d "$KSRC" ]]; then
     if [[ "${PATCH_OK[$p]}" -eq 1 ]]; then
       patchfile=$(ls "$PATCHDIR/${p}"*.patch)
       echo "-- applying: $patchfile"
-      patch -p1 < "$patchfile"
+      patch -p1 --forward < "$patchfile"
     fi
   done
 

@@ -11,7 +11,7 @@ KVER="$(uname -r)"
 
 echo "Rebuilding modules for kernel $KVER"
 
-sudo apt install -y linux-headers-"$KVER"
+sudo apt install -y linux-headers-"$KVER" flex bison libssl-dev libelf-dev bc
 sudo apt-mark hold linux-image-"$KVER" linux-headers-"$KVER" || true
 
 mkdir -p "$BUILD"
@@ -55,7 +55,7 @@ declare -A PATCH_OK
 for p in 0001 0002 0003; do
   patchfile=$(ls "$PATCHDIR/${p}"*.patch)
   echo "-- dry run: $patchfile"
-  if patch -p1 --dry-run < "$patchfile"; then
+  if patch -p1 --forward --dry-run < "$patchfile"; then
     PATCH_OK[$p]=1
   else
     PATCH_OK[$p]=0
@@ -68,7 +68,7 @@ for p in 0001 0002 0003; do
   if [[ "${PATCH_OK[$p]}" -eq 1 ]]; then
     patchfile=$(ls "$PATCHDIR/${p}"*.patch)
     echo "-- applying: $patchfile"
-    patch -p1 < "$patchfile"
+    patch -p1 --forward < "$patchfile"
   fi
 done
 
