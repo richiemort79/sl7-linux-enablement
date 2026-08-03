@@ -80,7 +80,7 @@ sudo apt update
 sudo apt install -y \
   linux-headers-"$KVER" build-essential git meson ninja-build \
   libevdev-dev libudev-dev pkg-config libspdlog-dev nlohmann-json3-dev \
-  libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev \
+  libgles2-mesa-dev libegl1-mesa-dev libgl1-mesa-dev libxext-dev \
   flex bison libssl-dev libelf-dev bc libdw-dev dwarves rsync cpio kmod
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
@@ -196,7 +196,7 @@ fi
 cd iptsd
 git checkout .
 patch -p1 < "$PATCHDIR/0004-iptsd-add-Touchpad-LiftGraceMs-option.patch"
-meson setup build --wipe 2>/dev/null || meson setup build
+meson setup build --auto-features=disabled --wipe 2>/dev/null || meson setup build --auto-features=disabled
 ninja -C build
 
 # Install as iptsd-fork under /usr/local/bin rather than overwriting the
