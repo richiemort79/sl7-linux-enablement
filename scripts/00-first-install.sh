@@ -253,6 +253,21 @@ if [[ -z "$BUILT_BIN" ]]; then
 fi
 sudo install -m 755 "$BUILT_BIN" /usr/local/bin/iptsd-fork
 
+# The udev rule that starts iptsd (91-iptsd.rules) depends on this helper
+# to decide which hidraw devices are actually touch/pen digitizers. It's
+# a separate binary from iptsd itself, built by the same meson project.
+# Missing this (along with the base iptsd@.service template and the udev
+# rule itself) was the reason iptsd never actually started on real
+# hardware, despite the binary and the ExecStart override both existing —
+# nothing was ever triggering an instance.
+CHECK_DEVICE_BIN="$(find build -type f -name iptsd-check-device -executable | head -1)"
+if [[ -n "$CHECK_DEVICE_BIN" ]]; then
+  sudo install -m 755 "$CHECK_DEVICE_BIN" /usr/local/bin/iptsd-check-device
+else
+  echo "WARNING: could not find iptsd-check-device in build/ — iptsd's"
+  echo "udev rule will not be able to trigger the daemon without it."
+fi
+
 echo "== Installing config files =="
 sudo cp -r "$CONFDIR"/etc/. /etc/
 if [[ -f "$CONFDIR/usr/lib/systemd/system-sleep/btintel-pcie.sh" ]]; then
@@ -270,6 +285,11 @@ if [[ -f /etc/udev/rules.d/91-sl7-speaker-unmute.rules ]]; then
   sudo udevadm control --reload-rules
   # Run it now too, so speakers work immediately without needing a reboot
   sudo /usr/local/bin/sl7-speaker-unmute.sh || true
+fi
+if [[ -f /etc/udev/rules.d/91-iptsd.rules ]]; then
+  sudo udevadm control --reload-rules
+  # Trigger now so iptsd starts immediately without needing a reboot
+  sudo udevadm trigger --subsystem-match=hidraw --action=add
 fi
 
 if [[ "$IS_LIVE" -eq 0 ]]; then

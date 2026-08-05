@@ -7,15 +7,58 @@ with the stock distro kernel, no linux-surface kernel required.
 Based on the bring-up work and root-cause analysis from nierdal on
 linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 
+## ⚠️ Known issues — not yet fixed
+
+- **PipeWire-routed audio is silent** (browsers, most GUI apps, GNOME
+  Settings' sound test). Raw ALSA apps work correctly (see
+  `configs/etc/asound.conf`). Everything checked at the mixer/UCM level
+  is correct — amp enabled, channel routing correct (`L,R`), volumes at
+  max, correct PCM device per the vendor's own UCM file — yet PipeWire
+  still doesn't produce sound. Root cause not found; a WirePlumber config
+  attempt was tried and confirmed **not** to work (see git history) and
+  isn't included here. Worth reporting to PipeWire/linux-surface with the
+  exact symptom if picking this up again.
+- **Screen brightness control does nothing.** `intel_backlight` exists,
+  accepts reads/writes, `brightness` value changes and holds — but the
+  physical screen never dims or brightens, from the hardware keys, GNOME,
+  or direct `echo` writes to sysfs. Tried and confirmed **not** to fix
+  it: `i915.enable_dpcd_backlight=1` (wrong driver — this hardware uses
+  `xe`, not `i915`) and `xe.enable_dpcd_backlight=1` (correct driver,
+  still no effect). Likely needs an actual panel-specific kernel quirk,
+  not just a boot parameter. Ambient light sensor itself works correctly
+  (verified: raw illuminance value changes with actual light level) —
+  it's specifically the backlight output side that doesn't respond.
+- **Touchpad right-click via physical corner-press doesn't work**
+  (`button-areas` click method). Two-finger tap does work reliably
+  (`clickfinger` method, set via GNOME's `click-method` gsetting) and is
+  the current workaround — no separate fix needed, just a different
+  gesture than Windows users may expect.
+
 ## What works after this
 
 - Keyboard, battery, fan, platform profile (MSHW0551 registry fix)
-- Ambient light sensor with native auto brightness
-- Speakers, headset jack, internal mic array (SoundWire fixes)
-- Webcam at ~18.8 fps (12 MHz clock tolerance patch)
-- Full touchpad: cursor, gestures, physical clicks (iptsd fork + tuning)
+- Ambient light sensor (verified: raw value responds to actual light level)
+- Speakers via raw ALSA (SoundWire fixes + OT23 amp-enable fix); PipeWire-
+  routed audio still broken, see Known Issues above
+- Webcam driver loads (~18.8 fps expected per 12 MHz clock tolerance
+  patch; not re-verified working end-to-end after the touchpad/mouse
+  mixup earlier in bring-up — worth a quick check)
+- Touchpad: cursor, drag, scroll, two-finger right-click (iptsd fork +
+  tuning) — physical corner-click right-click does not work, see Known
+  Issues above
 - Power button wake from s2idle, no keyboard-dead-at-greeter race
 - No GPE storm / sleep-of-death on resume
+
+Note: getting the touchpad actually working took more than just building
+iptsd and its config — the binary and `ExecStart` override existed, but
+the base `iptsd@.service` template, the udev rule that triggers instances
+of it, and the `iptsd-check-device` helper binary it depends on were all
+missing from this repo entirely. Cursor movement worked anyway (basic HID
+passthrough from the kernel), which masked the fact that nothing was ever
+actually starting the iptsd daemon — gestures/drag/right-click only
+started working once all three pieces were added. `00-first-install.sh`
+now builds/installs the helper and triggers udev immediately so this
+works without a reboot on first install.
 
 Note: battery reporting needed a second small patch (0005) beyond the
 original bring-up report — the stock `ssam_node_group_sl7[]` array (reused

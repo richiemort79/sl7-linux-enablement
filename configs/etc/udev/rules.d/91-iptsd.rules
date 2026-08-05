@@ -1,0 +1,10 @@
+# Triggers an iptsd@<device>.service instance for each hidraw device that
+# passes iptsd-check-device's filter. Shipped by the iptsd project itself
+# (build/etc/50-iptsd.rules after a meson build) — this was missing from
+# the repo entirely until real-hardware testing found the touchpad had
+# cursor movement but no gestures/drag/right-click, because nothing was
+# triggering the daemon to start at all.
+SUBSYSTEM=="hidraw", ACTION=="add", TAG+="systemd", \
+	PROGRAM="/usr/local/bin/iptsd-check-device --quiet $env{DEVNAME}", \
+	PROGRAM="/bin/systemd-escape --path $env{DEVNAME}", \
+	ENV{SYSTEMD_WANTS}+="iptsd@$result.service"

@@ -1,0 +1,21 @@
+# Base iptsd systemd unit template, shipped by the iptsd project itself
+# (build/etc/iptsd@.service after a meson build). This was NEVER actually
+# included in this repo until real-hardware testing found the touchpad
+# had cursor movement (basic HID emulation) but no gestures/drag/right-
+# click — because nothing was actually starting the iptsd daemon at all.
+# The binary (installed as /usr/local/bin/iptsd-fork) and the ExecStart
+# override (iptsd@.service.d/fork.conf) existed, but this base template
+# and the udev rule that triggers instances of it (91-iptsd.rules) did
+# not, so `iptsd@*.service` had nothing to attach to.
+
+[Unit]
+Description=Intel Precise Touch & Stylus Daemon
+Documentation=https://github.com/linux-surface/iptsd
+StopWhenUnneeded=yes
+BindsTo=%i.device
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/iptsd /%I
+Restart=on-failure
+RestartSec=2
