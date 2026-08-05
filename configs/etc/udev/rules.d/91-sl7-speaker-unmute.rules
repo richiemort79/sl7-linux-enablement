@@ -1,0 +1,14 @@
+# Fixes silent speakers: the rt1320 amp's Output Terminal switches
+# (OT23 L/R) default to off whenever the sof-soundwire card is created,
+# even though every other stage in the signal chain is on/max — the
+# "ghost amp" pattern. This replaced two separate systemd services (one
+# at system boot, one per-user after WirePlumber) that were guessing at
+# two different points in the startup sequence — fragile, and the
+# user-level one had a permissions bug. A udev rule tied to the actual
+# card appearing is simpler, runs as root (no permission issues), and
+# naturally re-fires any time the card is re-created, not just once at
+# boot guessed at the wrong moment.
+#
+# systemd-run --no-block hands off immediately so udev's worker isn't
+# blocked waiting on the script.
+SUBSYSTEM=="sound", KERNEL=="controlC*", ACTION=="add", RUN+="/usr/bin/systemd-run --no-block /usr/local/bin/sl7-speaker-unmute.sh"

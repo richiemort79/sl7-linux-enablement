@@ -73,7 +73,7 @@ systemctl is-enabled iptsd-resume.service 2>/dev/null || echo "not enabled"
 
 echo
 echo "== Speaker output terminal (rt1320 OT23 L/R) =="
-systemctl is-enabled sl7-speaker-unmute.service 2>/dev/null || echo "sl7-speaker-unmute.service not enabled"
+[[ -f /etc/udev/rules.d/91-sl7-speaker-unmute.rules ]] && echo "OK   udev rule installed" || echo "MISS udev rule not installed"
 SPK_CARD="$(aplay -l 2>/dev/null | awk -F'[ :]' '/sofsoundwire/{print $2; exit}')"
 SPK_CARD="${SPK_CARD:-0}"
 amixer -c "$SPK_CARD" sget 'rt1320-2 OT23 L' 2>/dev/null | grep -q '\[on\]' && echo "OK   OT23 L on" || echo "MISS OT23 L off or card not present"

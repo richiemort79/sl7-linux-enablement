@@ -28,22 +28,23 @@ Note: even with patches 0002/0006 applied and the audio card enumerating
 correctly (ALSA sees Speaker/Jack Out/HDMI devices, no errors anywhere),
 speakers were completely silent. Root cause: the rt1320 amp's Output
 Terminal switches (`rt1320-2 OT23 L Switch` / `... R Switch`) default to
-off on every boot, even though every other stage in the chain (Speaker
-Switch, Pre/Post Mixer volumes, FU21 gain) is on and at full volume — the
-classic "ghost amp" pattern the original bring-up report warned about.
-`configs/etc/systemd/system/sl7-speaker-unmute.service` + `configs/usr/
-local/bin/sl7-speaker-unmute.sh` set these on at boot with retry logic
-(SOF/SoundWire card enumeration is async, so a fixed systemd ordering
-alone isn't reliable). Enabled automatically by `00-first-install.sh`.
+off whenever the card is created, even though every other stage in the
+chain (Speaker Switch, Pre/Post Mixer volumes, FU21 gain) is on and at
+full volume — the classic "ghost amp" pattern the original bring-up
+report warned about.
 
-A second copy of this fix, `configs/etc/systemd/user/sl7-speaker-unmute.
-service`, runs after `wireplumber.service` in the user session. Raw ALSA
-(`speaker-test -D hw:0,2`) worked immediately after the system-level fix
-ran, but audio routed through PipeWire/Settings stayed silent — WirePlumber
-activating the card's ACP profile at login likely resets the amp's OT23
-state again, undoing the earlier system-level fix. The user-level copy
-re-applies it after WirePlumber, not before. Enabled globally (all users)
-by `00-first-install.sh` via `systemctl --global enable`.
+`configs/etc/udev/rules.d/91-sl7-speaker-unmute.rules` +
+`configs/usr/local/bin/sl7-speaker-unmute.sh` fix this: the udev rule
+fires the instant the sof-soundwire card's control device appears and
+sets OT23 L/R on. This replaced an earlier, more complicated attempt
+using two separate systemd services (one at system boot, one per-user
+after WirePlumber) that were each guessing at a different point in the
+startup sequence — fragile, and the user-level one also hit a
+permissions error since it ran as a regular user rather than root. Tying
+the fix directly to the udev hardware event is simpler, always runs as
+root (no permission issues), and re-fires naturally any time the card is
+re-created rather than needing a specific boot-order guess. Installed
+and applied immediately by `00-first-install.sh`.
 
 ## Repo layout
 
