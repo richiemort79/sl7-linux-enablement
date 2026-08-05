@@ -8,12 +8,20 @@
 # SOF/SoundWire card enumeration is async at boot, so retry briefly
 # rather than relying purely on systemd unit ordering.
 
-CARD="sof-soundwire"
 TRIES=20
 DELAY=1
 
 i=0
 while [ "$i" -lt "$TRIES" ]; do
+	# Resolve the actual card index each try — aplay -l shows it as
+	# "card N: sofsoundwire [sof-soundwire], ...". Card ID has no hyphen;
+	# the bracketed name does. `amixer -c` wants the numeric index or the
+	# ID, not the bracketed name, so parse the ID out explicitly instead
+	# of assuming index 0 (which worked in manual testing but could shift
+	# if another sound card enumerates first on some boots).
+	CARD="$(aplay -l 2>/dev/null | awk -F'[ :]' '/sofsoundwire/{print $2; exit}')"
+	CARD="${CARD:-0}"
+
 	if amixer -c "$CARD" sset 'rt1320-2 OT23 L' on >/dev/null 2>&1 \
 	   && amixer -c "$CARD" sset 'rt1320-2 OT23 R' on >/dev/null 2>&1; then
 		exit 0
