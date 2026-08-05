@@ -7,87 +7,33 @@ with the stock distro kernel, no linux-surface kernel required.
 Based on the bring-up work and root-cause analysis from nierdal on
 linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 
-## ⚠️ Known issues — not yet fixed
+## Status
 
-- **PipeWire-routed audio is silent** (browsers, most GUI apps, GNOME
-  Settings' sound test). Raw ALSA apps work correctly (see
-  `configs/etc/asound.conf`). Everything checked at the mixer/UCM level
-  is correct — amp enabled, channel routing correct (`L,R`), volumes at
-  max, correct PCM device per the vendor's own UCM file — yet PipeWire
-  still doesn't produce sound. Root cause not found; a WirePlumber config
-  attempt was tried and confirmed **not** to work (see git history) and
-  isn't included here. Worth reporting to PipeWire/linux-surface with the
-  exact symptom if picking this up again.
-- **Screen brightness control does nothing.** `intel_backlight` exists,
-  accepts reads/writes, `brightness` value changes and holds — but the
-  physical screen never dims or brightens, from the hardware keys, GNOME,
-  or direct `echo` writes to sysfs. Tried and confirmed **not** to fix
-  it: `i915.enable_dpcd_backlight=1` (wrong driver — this hardware uses
-  `xe`, not `i915`) and `xe.enable_dpcd_backlight=1` (correct driver,
-  still no effect). Likely needs an actual panel-specific kernel quirk,
-  not just a boot parameter. Ambient light sensor itself works correctly
-  (verified: raw illuminance value changes with actual light level) —
-  it's specifically the backlight output side that doesn't respond.
-- **Touchpad right-click via physical corner-press doesn't work**
-  (`button-areas` click method). Two-finger tap does work reliably
-  (`clickfinger` method, set via GNOME's `click-method` gsetting) and is
-  the current workaround — no separate fix needed, just a different
-  gesture than Windows users may expect.
+**Working:**
+- Keyboard, battery, fan, platform profile
+- Ambient light sensor
+- Speakers (raw ALSA only — see below)
+- Touchpad: cursor, drag, scroll, two-finger right-click
+- Power button wake from s2idle
 
-## What works after this
+**Not working:**
+- PipeWire-routed audio (browsers, most apps) — silent. Raw ALSA works
+  (`configs/etc/asound.conf`)
+- Webcam — driver loads but no working video
+- Screen brightness control — no effect from keys, GNOME, or direct sysfs
+  writes. `i915`/`xe` DPCD kernel params tried, no effect
+- Touchpad corner-click right-click — two-finger tap works instead
+- Suspend/resume — not tested on this machine
 
-- Keyboard, battery, fan, platform profile (MSHW0551 registry fix)
-- Ambient light sensor (verified: raw value responds to actual light level)
-- Speakers via raw ALSA (SoundWire fixes + OT23 amp-enable fix); PipeWire-
-  routed audio still broken, see Known Issues above
-- Webcam driver loads (~18.8 fps expected per 12 MHz clock tolerance
-  patch; not re-verified working end-to-end after the touchpad/mouse
-  mixup earlier in bring-up — worth a quick check)
-- Touchpad: cursor, drag, scroll, two-finger right-click (iptsd fork +
-  tuning) — physical corner-click right-click does not work, see Known
-  Issues above
-- Power button wake from s2idle, no keyboard-dead-at-greeter race
-- No GPE storm / sleep-of-death on resume
+## Patch notes
 
-Note: getting the touchpad actually working took more than just building
-iptsd and its config — the binary and `ExecStart` override existed, but
-the base `iptsd@.service` template, the udev rule that triggers instances
-of it, and the `iptsd-check-device` helper binary it depends on were all
-missing from this repo entirely. Cursor movement worked anyway (basic HID
-passthrough from the kernel), which masked the fact that nothing was ever
-actually starting the iptsd daemon — gestures/drag/right-click only
-started working once all three pieces were added. `00-first-install.sh`
-now builds/installs the helper and triggers udev immediately so this
-works without a reboot on first install.
-
-Note: battery reporting needed a second small patch (0005) beyond the
-original bring-up report — the stock `ssam_node_group_sl7[]` array (reused
-from the ARM Surface Laptop 7 variant) didn't reference the battery SAM
-nodes that SL6/SLS1 already use, even though those node definitions already
-exist generically in the file. See patches/0005 and its commit message for
-the two-line fix.
-
-Note: even with patches 0002/0006 applied and the audio card enumerating
-correctly (ALSA sees Speaker/Jack Out/HDMI devices, no errors anywhere),
-speakers were completely silent. Root cause: the rt1320 amp's Output
-Terminal switches (`rt1320-2 OT23 L Switch` / `... R Switch`) default to
-off whenever the card is created, even though every other stage in the
-chain (Speaker Switch, Pre/Post Mixer volumes, FU21 gain) is on and at
-full volume — the classic "ghost amp" pattern the original bring-up
-report warned about.
-
-`configs/etc/udev/rules.d/91-sl7-speaker-unmute.rules` +
-`configs/usr/local/bin/sl7-speaker-unmute.sh` fix this: the udev rule
-fires the instant the sof-soundwire card's control device appears and
-sets OT23 L/R on. This replaced an earlier, more complicated attempt
-using two separate systemd services (one at system boot, one per-user
-after WirePlumber) that were each guessing at a different point in the
-startup sequence — fragile, and the user-level one also hit a
-permissions error since it ran as a regular user rather than root. Tying
-the fix directly to the udev hardware event is simpler, always runs as
-root (no permission issues), and re-fires naturally any time the card is
-re-created rather than needing a specific boot-order guess. Installed
-and applied immediately by `00-first-install.sh`.
+Patches beyond the original bring-up report: 0005 adds battery reporting
+(missing SAM node references for SL7). 0002 was split from a combined
+patch since one of its two target files was already superseded upstream
+on newer kernels. The `91-sl7-speaker-unmute.rules` udev rule fixes a
+"ghost amp" issue (amp enables fine, but its output-terminal switches
+default off) — replaced an earlier two-service approach that was more
+fragile and had a permissions bug.
 
 ## Repo layout
 
@@ -104,22 +50,6 @@ All 4 patch files are included directly in `patches/` — nothing to download
 separately. `scripts/00-first-install.sh` checks they're present and exits
 with a clear error if the directory has been tampered with or is incomplete,
 but under normal use this is just a safety check, not a manual step.
-
-patches/0005 was added later during real-hardware testing — it fixes
-battery reporting, which the original bring-up report's patches didn't
-cover (see README "What works after this" for details).
-
-patches/0002 was originally one combined patch touching two files
-(soc_sdw_utils.c and soc_sdw_rt_dmic.c). It's now split into 0002
-(soc_sdw_utils.c — the DAI-naming/duplicate-device fix that actually
-matters) and 0006 (soc_sdw_rt_dmic.c — internal mic backport). This is
-because on newer kernel source, soc_sdw_rt_dmic.c's target content is
-sometimes already present via an unrelated upstream change, which made
-the combined patch report as "already applied"/failed as a whole and
-block the audio module build entirely — even though the actual fix
-(0002) applied cleanly every time. Splitting them lets each apply and get
-tracked independently; the audio module now only requires 0002 to
-succeed.
 
 Note on the iptsd fork binary: the fork is built and installed as
 `/usr/local/bin/iptsd-fork` (not `/usr/bin/iptsd`), so it never overwrites
