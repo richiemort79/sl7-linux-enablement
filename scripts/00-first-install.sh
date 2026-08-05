@@ -96,14 +96,14 @@ mkdir -p "$BUILD"
 
 echo "== Fetching kernel source matching $KVER =="
 cd "$BUILD"
-if [[ ! -d linux-source ]]; then
+if [[ ! -d "linux-source-$KVER" ]]; then
   # Clear any stale extracted source trees from earlier attempts in this
   # same session (they don't survive a reboot on a live session, but can
   # pile up across multiple script runs within one boot) — otherwise the
   # mv below can match more than one directory and refuse to proceed.
   # Only removes extracted directories, not the downloaded .orig.tar.gz/
   # .dsc/.diff.gz files, so no re-download is needed.
-  find . -maxdepth 1 -type d -name 'linux-*' ! -name 'linux-source' -exec rm -rf {} +
+  find . -maxdepth 1 -type d -name 'linux-*' ! -name "linux-source-$KVER" -exec rm -rf {} +
 
   echo "-- Ensuring deb-src is enabled for archive/security.ubuntu.com --"
   sudo bash -c "
@@ -139,7 +139,7 @@ if [[ ! -d linux-source ]]; then
   if [[ "$FETCHED" -eq 1 ]]; then
     EXTRACTED_DIRS=(linux-*/)
     if [[ "${#EXTRACTED_DIRS[@]}" -eq 1 && -d "${EXTRACTED_DIRS[0]}" ]]; then
-      mv "${EXTRACTED_DIRS[0]}" linux-source
+      mv "${EXTRACTED_DIRS[0]}" "linux-source-$KVER"
     else
       echo "ERROR: expected exactly one extracted directory matching"
       echo "'linux-*/' in $BUILD, found ${#EXTRACTED_DIRS[@]}: ${EXTRACTED_DIRS[*]}"
@@ -153,7 +153,7 @@ if [[ ! -d linux-source ]]; then
     KSRC=""
   fi
 fi
-KSRC="${KSRC:-$BUILD/linux-source}"
+KSRC="${KSRC:-$BUILD/linux-source-$KVER}"
 
 if [[ -n "$KSRC" && -d "$KSRC" ]]; then
   cd "$KSRC"
