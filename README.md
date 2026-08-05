@@ -36,6 +36,15 @@ local/bin/sl7-speaker-unmute.sh` set these on at boot with retry logic
 (SOF/SoundWire card enumeration is async, so a fixed systemd ordering
 alone isn't reliable). Enabled automatically by `00-first-install.sh`.
 
+A second copy of this fix, `configs/etc/systemd/user/sl7-speaker-unmute.
+service`, runs after `wireplumber.service` in the user session. Raw ALSA
+(`speaker-test -D hw:0,2`) worked immediately after the system-level fix
+ran, but audio routed through PipeWire/Settings stayed silent — WirePlumber
+activating the card's ACP profile at login likely resets the amp's OT23
+state again, undoing the earlier system-level fix. The user-level copy
+re-applies it after WirePlumber, not before. Enabled globally (all users)
+by `00-first-install.sh` via `systemctl --global enable`.
+
 ## Repo layout
 
 ```

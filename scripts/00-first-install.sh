@@ -271,6 +271,15 @@ if [[ -f /etc/systemd/system/sl7-speaker-unmute.service ]]; then
   # Run it now too, so speakers work immediately without needing a reboot
   sudo systemctl start sl7-speaker-unmute.service || true
 fi
+if [[ -f /etc/systemd/user/sl7-speaker-unmute.service ]]; then
+  # Global --enable makes this run for every user session, after
+  # WirePlumber activates the card — covers the case where WirePlumber's
+  # own profile activation resets the amp's OT23 state after the earlier
+  # system-level fix already ran at boot.
+  sudo systemctl --global enable sl7-speaker-unmute.service || true
+  systemctl --user daemon-reload 2>/dev/null || true
+  systemctl --user start sl7-speaker-unmute.service 2>/dev/null || true
+fi
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
   echo "== Setting kernel command line (acpi_mask_gpe=0xAB) =="
