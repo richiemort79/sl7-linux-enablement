@@ -14,7 +14,7 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 - Ambient light sensor
 - Speakers (raw ALSA only — see below)
 - Touchpad: cursor, drag, scroll, two-finger right-click
-- Power button wake from s2idle
+- Power button wake from s2idle (tested: suspend, then power button wakes it)
 
 **Not working:**
 - PipeWire-routed audio (browsers, most apps) — silent. Raw ALSA works
@@ -23,7 +23,6 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 - Screen brightness control — no effect from keys, GNOME, or direct sysfs
   writes. `i915`/`xe` DPCD kernel params tried, no effect
 - Touchpad corner-click right-click — two-finger tap works instead
-- Suspend/resume — not tested on this machine
 
 ## Patch notes
 
