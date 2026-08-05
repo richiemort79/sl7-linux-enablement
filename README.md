@@ -15,6 +15,7 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 - Speakers (raw ALSA only — see below)
 - Touchpad: cursor, drag, scroll, two-finger right-click
 - Power button wake from s2idle (tested: suspend, then power button wakes it)
+- Clean shutdown with audio patches active (tested: no hang/panic)
 
 **Not working:**
 - PipeWire-routed audio (browsers, most apps) — silent. Raw ALSA works
@@ -95,9 +96,13 @@ Check status of everything:
 Reports on Ubuntu-based systems (Debian-6.19.8-surface-3 build, see
 linux-surface/linux-surface#1710 comments from ghostplant) noted kernel
 panics / hangs on shutdown when the SoundWire audio patch was active. This
-was NOT reported on Fedora by nierdal. Test a clean shutdown BEFORE enabling
-`iptsd-resume.service`, so you can isolate which component is responsible if
-something hangs.
+was NOT reported on Fedora by nierdal.
+
+**Tested on this machine: shutdown is clean, no hang or panic**, with the
+audio patches applied and the module loaded. Still worth testing yourself
+after any kernel update, since a new kernel could reintroduce it. Test a
+clean shutdown BEFORE enabling `iptsd-resume.service`, so you can isolate
+which component is responsible if something does hang in the future.
 
 ## License note
 
