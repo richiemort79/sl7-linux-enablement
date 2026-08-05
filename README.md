@@ -44,6 +44,18 @@ patches/0005 was added later during real-hardware testing — it fixes
 battery reporting, which the original bring-up report's patches didn't
 cover (see README "What works after this" for details).
 
+patches/0002 was originally one combined patch touching two files
+(soc_sdw_utils.c and soc_sdw_rt_dmic.c). It's now split into 0002
+(soc_sdw_utils.c — the DAI-naming/duplicate-device fix that actually
+matters) and 0006 (soc_sdw_rt_dmic.c — internal mic backport). This is
+because on newer kernel source, soc_sdw_rt_dmic.c's target content is
+sometimes already present via an unrelated upstream change, which made
+the combined patch report as "already applied"/failed as a whole and
+block the audio module build entirely — even though the actual fix
+(0002) applied cleanly every time. Splitting them lets each apply and get
+tracked independently; the audio module now only requires 0002 to
+succeed.
+
 Note on the iptsd fork binary: the fork is built and installed as
 `/usr/local/bin/iptsd-fork` (not `/usr/bin/iptsd`), so it never overwrites
 or conflicts with the distro's stock `iptsd` package. `configs/etc/systemd/

@@ -160,7 +160,7 @@ if [[ -n "$KSRC" && -d "$KSRC" ]]; then
 
   echo "== Applying kernel patches (dry run first) =="
   declare -A PATCH_OK
-  for p in 0001 0005 0002 0003; do
+  for p in 0001 0005 0002 0006 0003; do
     patchfile=$(ls "$PATCHDIR/${p}"*.patch)
     echo "-- dry run: $patchfile"
     if patch -p1 --forward --dry-run < "$patchfile"; then
@@ -169,12 +169,13 @@ if [[ -n "$KSRC" && -d "$KSRC" ]]; then
       PATCH_OK[$p]=0
       echo "WARNING: $patchfile did not apply cleanly against this kernel"
       echo "source (see hunk failures above — likely a version mismatch"
-      echo "between the fetched source and your running kernel). Skipping"
-      echo "just this patch/module; the others will still be attempted."
+      echo "between the fetched source and your running kernel, or the"
+      echo "content is already present via a different upstream change)."
+      echo "Skipping just this patch; the others will still be attempted."
     fi
   done
 
-  for p in 0001 0005 0002 0003; do
+  for p in 0001 0005 0002 0006 0003; do
     if [[ "${PATCH_OK[$p]}" -eq 1 ]]; then
       patchfile=$(ls "$PATCHDIR/${p}"*.patch)
       echo "-- applying: $patchfile"

@@ -63,7 +63,7 @@ fi
 cd "linux-source-$KVER"
 
 declare -A PATCH_OK
-for p in 0001 0005 0002 0003; do
+for p in 0001 0005 0002 0006 0003; do
   patchfile=$(ls "$PATCHDIR/${p}"*.patch)
   echo "-- dry run: $patchfile"
   if patch -p1 --forward --dry-run < "$patchfile"; then
@@ -71,11 +71,11 @@ for p in 0001 0005 0002 0003; do
   else
     PATCH_OK[$p]=0
     echo "WARNING: $patchfile did not apply cleanly. Skipping this"
-    echo "patch/module; the others will still be attempted."
+    echo "patch; the others will still be attempted."
   fi
 done
 
-for p in 0001 0005 0002 0003; do
+for p in 0001 0005 0002 0006 0003; do
   if [[ "${PATCH_OK[$p]}" -eq 1 ]]; then
     patchfile=$(ls "$PATCHDIR/${p}"*.patch)
     echo "-- applying: $patchfile"
