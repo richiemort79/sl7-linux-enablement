@@ -260,7 +260,17 @@ if [[ -f "$CONFDIR/usr/lib/systemd/system-sleep/btintel-pcie.sh" ]]; then
   sudo cp "$CONFDIR/usr/lib/systemd/system-sleep/btintel-pcie.sh" /usr/lib/systemd/system-sleep/
   sudo chmod +x /usr/lib/systemd/system-sleep/btintel-pcie.sh
 fi
+if [[ -f "$CONFDIR/usr/local/bin/sl7-speaker-unmute.sh" ]]; then
+  sudo mkdir -p /usr/local/bin
+  sudo cp "$CONFDIR/usr/local/bin/sl7-speaker-unmute.sh" /usr/local/bin/
+  sudo chmod +x /usr/local/bin/sl7-speaker-unmute.sh
+fi
 sudo systemctl daemon-reload
+if [[ -f /etc/systemd/system/sl7-speaker-unmute.service ]]; then
+  sudo systemctl enable sl7-speaker-unmute.service
+  # Run it now too, so speakers work immediately without needing a reboot
+  sudo systemctl start sl7-speaker-unmute.service || true
+fi
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
   echo "== Setting kernel command line (acpi_mask_gpe=0xAB) =="

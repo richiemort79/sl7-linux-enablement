@@ -24,6 +24,18 @@ nodes that SL6/SLS1 already use, even though those node definitions already
 exist generically in the file. See patches/0005 and its commit message for
 the two-line fix.
 
+Note: even with patches 0002/0006 applied and the audio card enumerating
+correctly (ALSA sees Speaker/Jack Out/HDMI devices, no errors anywhere),
+speakers were completely silent. Root cause: the rt1320 amp's Output
+Terminal switches (`rt1320-2 OT23 L Switch` / `... R Switch`) default to
+off on every boot, even though every other stage in the chain (Speaker
+Switch, Pre/Post Mixer volumes, FU21 gain) is on and at full volume — the
+classic "ghost amp" pattern the original bring-up report warned about.
+`configs/etc/systemd/system/sl7-speaker-unmute.service` + `configs/usr/
+local/bin/sl7-speaker-unmute.sh` set these on at boot with retry logic
+(SOF/SoundWire card enumeration is async, so a fixed systemd ordering
+alone isn't reliable). Enabled automatically by `00-first-install.sh`.
+
 ## Repo layout
 
 ```
