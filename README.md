@@ -17,6 +17,13 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 - Power button wake from s2idle, no keyboard-dead-at-greeter race
 - No GPE storm / sleep-of-death on resume
 
+Note: battery reporting needed a second small patch (0005) beyond the
+original bring-up report — the stock `ssam_node_group_sl7[]` array (reused
+from the ARM Surface Laptop 7 variant) didn't reference the battery SAM
+nodes that SL6/SLS1 already use, even though those node definitions already
+exist generically in the file. See patches/0005 and its commit message for
+the two-line fix.
+
 ## Repo layout
 
 ```
@@ -32,6 +39,10 @@ All 4 patch files are included directly in `patches/` — nothing to download
 separately. `scripts/00-first-install.sh` checks they're present and exits
 with a clear error if the directory has been tampered with or is incomplete,
 but under normal use this is just a safety check, not a manual step.
+
+patches/0005 was added later during real-hardware testing — it fixes
+battery reporting, which the original bring-up report's patches didn't
+cover (see README "What works after this" for details).
 
 Note on the iptsd fork binary: the fork is built and installed as
 `/usr/local/bin/iptsd-fork` (not `/usr/bin/iptsd`), so it never overwrites
