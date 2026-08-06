@@ -16,6 +16,8 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 - Touchpad: cursor, drag, scroll, two-finger right-click
 - Power button wake from s2idle (tested: suspend, then power button wakes it)
 - Clean shutdown with audio patches active (tested: no hang/panic)
+- Touchpad after suspend/resume (iptsd-resume.service — without it,
+  degrades to mouse-only after first sleep, no gestures/drag/right-click)
 
 **Not working:**
 - PipeWire-routed audio (browsers, most apps) — silent. Raw ALSA works
@@ -91,7 +93,7 @@ Check status of everything:
 ./scripts/02-status-check.sh
 ```
 
-## Known risk (read before enabling audio + resume together)
+## Known risk
 
 Reports on Ubuntu-based systems (Debian-6.19.8-surface-3 build, see
 linux-surface/linux-surface#1710 comments from ghostplant) noted kernel
@@ -99,10 +101,11 @@ panics / hangs on shutdown when the SoundWire audio patch was active. This
 was NOT reported on Fedora by nierdal.
 
 **Tested on this machine: shutdown is clean, no hang or panic**, with the
-audio patches applied and the module loaded. Still worth testing yourself
-after any kernel update, since a new kernel could reintroduce it. Test a
-clean shutdown BEFORE enabling `iptsd-resume.service`, so you can isolate
-which component is responsible if something does hang in the future.
+audio patches applied, the module loaded, and `iptsd-resume.service`
+enabled. `00-first-install.sh` now enables that service automatically on
+the strength of this test — if you're on a different kernel version or
+hardware revision, worth re-testing a clean shutdown yourself before
+relying on it day-to-day.
 
 ## License note
 

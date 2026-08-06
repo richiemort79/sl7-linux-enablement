@@ -291,6 +291,15 @@ if [[ -f /etc/udev/rules.d/91-iptsd.rules ]]; then
   # Trigger now so iptsd starts immediately without needing a reboot
   sudo udevadm trigger --subsystem-match=hidraw --action=add
 fi
+if [[ -f /etc/systemd/system/iptsd-resume.service ]]; then
+  # Without this, iptsd silently keeps running after suspend/resume but
+  # the touchpad firmware falls back to basic mouse-only reports —
+  # cursor and single-click keep working, but two-finger click, drag,
+  # and palm rejection all silently stop, with no error anywhere.
+  # Confirmed on real hardware: shutdown is clean with this enabled (see
+  # README "Known risk"), so safe to enable by default.
+  sudo systemctl enable iptsd-resume.service
+fi
 
 if [[ "$IS_LIVE" -eq 0 ]]; then
   echo "== Setting kernel command line (acpi_mask_gpe=0xAB) =="
@@ -338,10 +347,12 @@ Next steps (manual, deliberately not automated):
   2. Reboot.
   3. Verify keyboard / battery / touchpad first.
   4. THEN check audio (dmesg | grep -i sdw / sof) before assuming it's fine.
-  5. Test a full shutdown BEFORE enabling iptsd-resume.service — see
-     README "Known risk" section re: Ubuntu-based shutdown/panic reports.
-  6. If shutdown is clean:
-       sudo systemctl enable iptsd-resume.service
+
+iptsd-resume.service is enabled automatically (restarts iptsd after
+suspend/resume — without it, touchpad silently degrades to mouse-only
+after the first sleep cycle). Confirmed safe on real hardware: shutdown
+tested clean with audio patches + this service both active. See README
+"Known risk" if testing on different/newer kernel versions.
 
 EOF
 fi
