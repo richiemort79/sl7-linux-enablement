@@ -24,10 +24,13 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
   (`configs/etc/asound.conf`)
 - Webcam — sensor driver (`ov02c10`) and IPU7 kernel pipeline load fine,
   32 raw `/dev/videoN` nodes exist, but no working image. Root cause:
-  `cam -l` (libcamera) reports "No IPA found" — no Image Processing
-  Algorithm plugin exists for this IPU7 pipeline. Likely just not
-  packaged yet for this hardware generation (Lunar Lake IPU7 support is
-  new); not a config issue on this machine's end
+  `cam -l` (libcamera) reports "No IPA found" — confirmed via filesystem
+  search (`find / -iname "*ipu7*ipa*"`) that no IPA plugin exists
+  anywhere on the system. Installed libcamera is 0.2.0 (Ubuntu noble),
+  which may itself predate solid IPU7 pipeline-handler support — this is
+  very new hardware (Lunar Lake, late 2024/2025). Likely needs a newer
+  libcamera + IPA, not currently packaged for this distro; not a config
+  issue on this machine's end
 - Screen brightness control — no effect from keys, GNOME, or direct sysfs
   writes. `i915`/`xe` DPCD kernel params tried, no effect
 - Touchpad corner-click right-click — two-finger tap works instead
