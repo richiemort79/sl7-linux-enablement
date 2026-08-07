@@ -22,7 +22,12 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 **Not working:**
 - PipeWire-routed audio (browsers, most apps) — silent. Raw ALSA works
   (`configs/etc/asound.conf`)
-- Webcam — driver loads but no working video
+- Webcam — sensor driver (`ov02c10`) and IPU7 kernel pipeline load fine,
+  32 raw `/dev/videoN` nodes exist, but no working image. Root cause:
+  `cam -l` (libcamera) reports "No IPA found" — no Image Processing
+  Algorithm plugin exists for this IPU7 pipeline. Likely just not
+  packaged yet for this hardware generation (Lunar Lake IPU7 support is
+  new); not a config issue on this machine's end
 - Screen brightness control — no effect from keys, GNOME, or direct sysfs
   writes. `i915`/`xe` DPCD kernel params tried, no effect
 - Touchpad corner-click right-click — two-finger tap works instead
