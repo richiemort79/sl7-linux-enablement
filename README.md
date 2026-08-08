@@ -13,7 +13,8 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 - Keyboard, battery, fan, platform profile
 - Ambient light sensor
 - Speakers (raw ALSA only — see below)
-- Touchpad: cursor, drag, scroll, two-finger right-click
+- Touchpad: cursor, drag, scroll, right-click (two-finger tap, or corner-
+  press if enabled in Zorin's touchpad settings)
 - Power button wake from s2idle (tested: suspend, then power button wakes it)
 - Clean shutdown with audio patches active (tested: no hang/panic)
 - Touchpad after suspend/resume (iptsd-resume.service — without it,
@@ -33,7 +34,6 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
   issue on this machine's end
 - Screen brightness control — no effect from keys, GNOME, or direct sysfs
   writes. `i915`/`xe` DPCD kernel params tried, no effect
-- Touchpad corner-click right-click — two-finger tap works instead
 
 ## Patch notes
 
