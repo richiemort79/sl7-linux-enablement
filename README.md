@@ -7,6 +7,23 @@ with the stock distro kernel, no linux-surface kernel required.
 Based on the bring-up work and root-cause analysis from nierdal on
 linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
 
+## After a kernel update
+
+The 3 out-of-tree modules (keyboard/battery, audio, webcam) are built for
+one specific kernel version. After any kernel update, they silently fall
+back to the stock (unpatched) versions — keyboard/battery/audio/webcam
+will stop working with no error, until you rebuild:
+
+```
+cd scripts && ./01-rebuild-modules.sh
+sudo modprobe -r surface_aggregator_registry && sudo modprobe surface_aggregator_registry
+sudo modprobe -r snd_soc_sdw_utils ov02c10 && sudo modprobe snd_soc_sdw_utils ov02c10
+```
+
+To stop this happening automatically, pin the kernel:
+`sudo apt-mark hold linux-image-generic linux-headers-generic linux-image-$(uname -r) linux-headers-$(uname -r)`
+(trades auto security updates for stability on this hardware-support layer)
+
 ## Status
 
 **Working:**
