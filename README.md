@@ -20,9 +20,33 @@ sudo modprobe -r surface_aggregator_registry && sudo modprobe surface_aggregator
 sudo modprobe -r snd_soc_sdw_utils ov02c10 && sudo modprobe snd_soc_sdw_utils ov02c10
 ```
 
-To stop this happening automatically, pin the kernel:
-`sudo apt-mark hold linux-image-generic linux-headers-generic linux-image-$(uname -r) linux-headers-$(uname -r)`
-(trades auto security updates for stability on this hardware-support layer)
+To stop this happening automatically, pin the kernel. **`apt-mark hold`
+is not enough** — confirmed on real hardware that it only blocks the
+*installed* kernel packages from being upgraded/removed, but does
+nothing to stop a brand new kernel package (different version, different
+package name) from being installed fresh alongside it, which
+unattended-upgrades will still do. This actually happened here (held
+`-29`, `unattended-upgrades` installed `-30` anyway, keyboard broke).
+
+The real fix is an APT preferences pin, which blocks every kernel
+package version — old, current, or future — from ever being considered
+installable at all:
+
+```
+sudo tee /etc/apt/preferences.d/no-kernel-updates > /dev/null << 'EOF'
+Package: linux-image-* linux-headers-* linux-generic linux-headers-generic linux-image-generic
+Pin: release *
+Pin-Priority: -1
+EOF
+```
+
+Verify it worked: `apt-cache policy linux-image-$(uname -r)` should show
+`Candidate: (none)`. (Trades all kernel security updates for stability on
+this hardware-support layer — a deliberate tradeoff, not a bug.)
+
+To later allow a kernel update on purpose: remove
+`/etc/apt/preferences.d/no-kernel-updates`, update, reboot, then
+`./01-rebuild-modules.sh` and re-add the pin file for the new kernel.
 
 ## Status
 
