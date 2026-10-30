@@ -5,7 +5,10 @@ Personal build/maintenance repo for keeping a Surface Laptop 7 for Business
 with the stock distro kernel, no linux-surface kernel required.
 
 Based on the bring-up work and root-cause analysis from nierdal on
-linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin.
+linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin. The PipeWire
+speaker fix (ghost-amp timeout and `rt1320-1` renumbering in patch 0002) is
+ported from floopflop's Fedora repo,
+https://github.com/floopflop/SL_Intel_Linux.
 
 ## After a kernel update
 
