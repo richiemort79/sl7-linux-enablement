@@ -9,7 +9,8 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin. The PipeWire
 speaker fix (ghost-amp timeout and `rt1320-1` renumbering in patch 0002) is
 ported from floopflop's Fedora repo,
 https://github.com/floopflop/SL_Intel_Linux, as is the webcam's libcamera
-patch and tuning in `patches/libcamera/`.
+patch and tuning in `patches/libcamera/` and the 12 MHz PLL rescaling in
+patch 0003 (webcam 9.4 -> ~30 fps).
 
 ## After a kernel update
 

@@ -14,7 +14,7 @@ KVER="$(uname -r)"
 REQUIRED_PATCHES=(
   "0001-platform-surface-aggregator_registry-SL7-Intel-MSHW0551-and-ALS.patch"
   "0002-ASoC-sdw_utils-SL7-speakers.patch"
-  "0003-media-ov02c10-tolerate-12MHz-external-clock.patch"
+  "0003-media-ov02c10-support-12MHz-external-clock.patch"
   "0004-iptsd-add-Touchpad-LiftGraceMs-option.patch"
   "0005-platform-surface-aggregator_registry-SL7-add-battery-nodes.patch"
   "0006-ASoC-sdw_utils-SL7-internal-mic-rt-dmic.patch"

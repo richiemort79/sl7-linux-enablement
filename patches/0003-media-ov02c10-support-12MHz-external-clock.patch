@@ -1,0 +1,79 @@
+--- a/drivers/media/i2c/ov02c10.c
++++ b/drivers/media/i2c/ov02c10.c
+@@ -16,6 +16,7 @@
+ 
+ #define OV02C10_LINK_FREQ_400MHZ	400000000ULL
+ #define OV02C10_MCLK			19200000
++#define OV02C10_MCLK_12MHZ		12000000
+ #define OV02C10_RGB_DEPTH		10
+ 
+ #define OV02C10_REG_CHIP_ID		CCI_REG16(0x300a)
+@@ -80,6 +81,21 @@
+ 	const int lane_settings_length[2];
+ };
+ 
++/*
++ * The mode tables below are written for a 19.2 MHz external clock and set both
++ * PLL feedback multipliers (PLL1/MIPI at 0x0304-0x0305, PLL2/system at
++ * 0x0315-0x0316) to 400. With a 12 MHz clock the same VCO frequencies, and
++ * therefore the same link frequency and frame rate, need a multiplier of
++ * 400 * 19.2 / 12 = 640 on both PLLs. Nothing else in the tables depends on
++ * the external clock.
++ */
++static const struct reg_sequence ov02c10_pll_12mhz[] = {
++	{0x0304, 0x02},
++	{0x0305, 0x80},
++	{0x0315, 0x02},
++	{0x0316, 0x80},
++};
++
+ static const struct reg_sequence sensor_1928x1092_30fps_setting[] = {
+ 	{0x0301, 0x08},
+ 	{0x0303, 0x06},
+@@ -383,6 +399,10 @@
+ 	struct v4l2_ctrl *exposure;
+ 
+ 	struct clk *img_clk;
++
++	/* External clock specific PLL settings, NULL for 19.2 MHz */
++	const struct reg_sequence *pll_regs;
++	unsigned int pll_regs_len;
+ 	struct gpio_desc *reset;
+ 	struct regulator_bulk_data supplies[ARRAY_SIZE(ov02c10_supply_names)];
+ 
+@@ -612,6 +632,15 @@
+ 		goto out;
+ 	}
+ 
++	if (ov02c10->pll_regs) {
++		ret = regmap_multi_reg_write(ov02c10->regmap, ov02c10->pll_regs,
++					     ov02c10->pll_regs_len);
++		if (ret) {
++			dev_err(ov02c10->dev, "failed to write PLL settings\n");
++			goto out;
++		}
++	}
++
+ 	ret = __v4l2_ctrl_handler_setup(ov02c10->sd.ctrl_handler);
+ 	if (ret)
+ 		goto out;
+@@ -892,10 +921,18 @@
+ 				     "failed to get imaging clock\n");
+ 
+ 	freq = clk_get_rate(ov02c10->img_clk);
+-	if (freq != OV02C10_MCLK)
++	switch (freq) {
++	case OV02C10_MCLK:
++		break;
++	case OV02C10_MCLK_12MHZ:
++		ov02c10->pll_regs = ov02c10_pll_12mhz;
++		ov02c10->pll_regs_len = ARRAY_SIZE(ov02c10_pll_12mhz);
++		break;
++	default:
+ 		return dev_err_probe(ov02c10->dev, -EINVAL,
+ 				     "external clock %lu is not supported",
+ 				     freq);
++	}
+ 
+ 	v4l2_i2c_subdev_init(&ov02c10->sd, client, &ov02c10_subdev_ops);
+ 

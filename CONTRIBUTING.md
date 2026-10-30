@@ -36,7 +36,7 @@ Not all four patches have the same destination — they differ in scope:
   ASoC master already contains the equivalent commits (see patch
   description for what to check).
 
-- **patches/0003** (ov02c10 12 MHz clock tolerance) — belongs in the media
+- **patches/0003** (ov02c10 12 MHz clock support, PLL multipliers 400 -> 640) — belongs in the media
   subsystem (`drivers/media/i2c/ov02c10.c`) upstream; not Surface-specific,
   useful to any Lunar Lake board wiring this sensor to 12 MHz.
 
