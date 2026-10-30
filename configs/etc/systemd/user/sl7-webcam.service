@@ -1,0 +1,11 @@
+# Feeds the libcamera webcam into the v4l2loopback device /dev/video50
+# ("Surface Camera") for apps that only speak V4L2, e.g. Chrome Flatpak.
+# The camera (and its light) is on while this runs; toggle it with
+# sl7-webcam or the "Surface Camera" launcher.
+[Unit]
+Description=Surface Laptop 7 virtual webcam (libcamera -> /dev/video50)
+
+[Service]
+ExecStart=/usr/bin/gst-launch-1.0 -q libcamerasrc ! video/x-raw,width=1280,height=720 ! videoconvert ! video/x-raw,format=YUY2 ! v4l2sink device=/dev/video50 sync=false
+Restart=on-failure
+RestartSec=2

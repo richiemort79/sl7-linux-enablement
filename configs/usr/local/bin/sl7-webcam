@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Switch the virtual webcam (sl7-webcam.service) on or off.
+# Usage: sl7-webcam [on|off|toggle|status]   (default: toggle)
+set -u
+case "${1:-toggle}" in
+  on)     systemctl --user start sl7-webcam.service ;;
+  off)    systemctl --user stop sl7-webcam.service ;;
+  status) systemctl --user is-active sl7-webcam.service; exit ;;
+  toggle) if systemctl --user is-active -q sl7-webcam.service; then
+            systemctl --user stop sl7-webcam.service
+          else
+            systemctl --user start sl7-webcam.service
+          fi ;;
+  *) echo "usage: sl7-webcam [on|off|toggle|status]"; exit 1 ;;
+esac
+if systemctl --user is-active -q sl7-webcam.service; then MSG="Surface Camera on"; else MSG="Surface Camera off"; fi
+command -v notify-send >/dev/null && notify-send -i camera-web "$MSG" || echo "$MSG"

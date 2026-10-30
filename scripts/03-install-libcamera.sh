@@ -67,6 +67,19 @@ sudo ln -sfn /usr/local/lib/x86_64-linux-gnu/gstreamer-1.0/libgstlibcamera.so "$
 # superseded by the divert above
 sudo rm -f /etc/environment.d/90-sl7-libcamera.conf
 
+# Virtual webcam for V4L2-only apps (Chrome Flatpak): v4l2loopback device
+# /dev/video50 "Surface Camera", fed by the sl7-webcam user service.
+echo "== Virtual webcam (v4l2loopback) =="
+sudo install -D -m 644 "$CONFDIR/etc/modules-load.d/sl7-v4l2loopback.conf" /etc/modules-load.d/sl7-v4l2loopback.conf
+sudo install -D -m 644 "$CONFDIR/etc/modprobe.d/sl7-v4l2loopback.conf" /etc/modprobe.d/sl7-v4l2loopback.conf
+sudo install -D -m 644 "$CONFDIR/etc/systemd/user/sl7-webcam.service" /etc/systemd/user/sl7-webcam.service
+sudo install -D -m 755 "$CONFDIR/usr/local/bin/sl7-webcam" /usr/local/bin/sl7-webcam
+sudo install -D -m 644 "$CONFDIR/usr/local/share/applications/sl7-webcam.desktop" /usr/local/share/applications/sl7-webcam.desktop
+lsmod | grep -q '^v4l2loopback' || sudo modprobe v4l2loopback
+systemctl --user daemon-reload
+
 echo
 echo "Done. Test now:  cam -l   (should list 'Internal front camera')"
 echo "Cheese and other GStreamer apps should now see the webcam (restart them)."
+echo "Chrome: run 'sl7-webcam on' (or the Surface Camera launcher), then pick"
+echo "\"Surface Camera\" in Chrome's camera settings. 'sl7-webcam off' when done."

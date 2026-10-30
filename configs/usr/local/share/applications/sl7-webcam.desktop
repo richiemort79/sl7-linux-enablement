@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Surface Camera
+Comment=Switch the virtual webcam for Chrome on or off
+Exec=/usr/local/bin/sl7-webcam toggle
+Icon=camera-web
+Terminal=false
+Categories=Utility;

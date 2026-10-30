@@ -67,13 +67,17 @@ To later allow a kernel update on purpose: remove
 - Webcam in Cheese and other GStreamer apps (`scripts/03-install-libcamera.sh`):
   floopflop's patched libcamera 0.7.2 in `/usr/local`, using its software
   ISP. The distro's libcamera 0.2.0 had no IPA for IPU7 ("No IPA found")
+- Webcam in Chrome (Flatpak) and other V4L2 apps, via a virtual webcam:
+  `sl7-webcam on` (or the "Surface Camera" launcher) feeds libcamera into
+  v4l2loopback `/dev/video50`; pick "Surface Camera" in Chrome's camera
+  settings, ignore the raw "Intel IPU7" entries. The camera and its light
+  stay on until `sl7-webcam off`
 - Touchpad after suspend/resume (iptsd-resume.service — without it,
   degrades to mouse-only after first sleep, no gestures/drag/right-click)
 
 **Not working:**
-- Webcam in non-GStreamer apps — browsers and Zoom use V4L2 or PipeWire
-  camera, and Zorin's PipeWire 1.0.5 has no libcamera plugin, so they
-  don't see it yet
+- Webcam on demand in PipeWire-camera apps — Zorin's PipeWire 1.0.5 has
+  no libcamera plugin, hence the switch-it-on-yourself virtual webcam
 - Screen brightness control — no effect from keys, GNOME, or direct sysfs
   writes. `i915`/`xe` DPCD kernel params tried, no effect
 
@@ -146,7 +150,8 @@ deliberately upgrade it, or a point release moves you forward):
 ./scripts/01-rebuild-modules.sh
 ```
 
-Webcam (builds patched libcamera 0.7.2 into `/usr/local`, a few minutes):
+Webcam (builds patched libcamera 0.7.2 into `/usr/local`, a few minutes;
+also sets up the `sl7-webcam` virtual webcam for Chrome):
 ```
 ./scripts/03-install-libcamera.sh
 ```
