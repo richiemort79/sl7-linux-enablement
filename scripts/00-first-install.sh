@@ -270,6 +270,13 @@ fi
 
 echo "== Installing config files =="
 sudo cp -r "$CONFDIR"/etc/. /etc/
+# Earlier versions installed an /etc/asound.conf pinning the ALSA default
+# to hw:0,2 as a workaround for silent PipeWire audio. Patch 0002 fixed
+# that properly, and the override now bypasses PipeWire, so move it aside.
+if [[ -f /etc/asound.conf ]] && grep -q 'slave.pcm "hw:0,2"' /etc/asound.conf; then
+  echo "Moving old SL7 /etc/asound.conf override to /etc/asound.conf.sl7-old"
+  sudo mv /etc/asound.conf /etc/asound.conf.sl7-old
+fi
 if [[ -f "$CONFDIR/usr/lib/systemd/system-sleep/btintel-pcie.sh" ]]; then
   sudo mkdir -p /usr/lib/systemd/system-sleep
   sudo cp "$CONFDIR/usr/lib/systemd/system-sleep/btintel-pcie.sh" /usr/lib/systemd/system-sleep/

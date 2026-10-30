@@ -1,6 +1,6 @@
 --- a/sound/soc/sdw_utils/soc_sdw_utils.c
 +++ b/sound/soc/sdw_utils/soc_sdw_utils.c
-@@ -320,8 +320,21 @@
+@@ -334,8 +334,21 @@
  				.widgets = generic_spk_widgets,
  				.num_widgets = ARRAY_SIZE(generic_spk_widgets),
  			},
@@ -23,7 +23,7 @@
  	},
  	{
  		.part_id = 0x1321,
-@@ -1421,14 +1434,29 @@
+@@ -1437,14 +1450,29 @@
  	const struct snd_soc_acpi_adr_device *adr_dev = &adr_link->adr_d[adr_index];
  	const struct snd_soc_acpi_endpoint *adr_end;
  	const struct asoc_sdw_dai_info *dai_info;
@@ -53,7 +53,7 @@
  	sdw_codec_name = _asoc_sdw_get_codec_name(dev, adr_link, adr_index);
  	if (!sdw_codec_name)
  		return -ENOMEM;
-@@ -1470,6 +1498,54 @@
+@@ -1486,6 +1514,61 @@
  	return ret;
  }
  
@@ -89,6 +89,13 @@
 +	    slave->id.unique_id != SDW_UNIQUE_ID(probe->adr))
 +		return 0;
 +
++	/* The machine driver can probe while a freshly started link is
++	 * still enumerating; give a real amp a moment before calling it
++	 * a ghost. */
++	if (slave->status == SDW_SLAVE_UNATTACHED)
++		wait_for_completion_timeout(&slave->enumeration_complete,
++					    msecs_to_jiffies(1500));
++
 +	if (slave->status != SDW_SLAVE_UNATTACHED)
 +		probe->attached = true;
 +
@@ -108,7 +115,7 @@
  int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
  				 struct snd_soc_aux_dev *soc_aux,
  				 struct asoc_sdw_dailink *soc_dais,
-@@ -1482,6 +1558,8 @@
+@@ -1498,6 +1581,8 @@
  	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
  	const struct snd_soc_acpi_link_adr *adr_link;
  	struct asoc_sdw_endpoint *soc_end = soc_ends;
@@ -117,7 +124,7 @@
  	int num_dais = 0;
  	int i, j;
  	int ret;
-@@ -1507,10 +1585,33 @@
+@@ -1523,10 +1608,40 @@
  				return -EINVAL;
  			}
  
@@ -125,6 +132,10 @@
 +				dev_warn(dev,
 +					 "codec 0x%llx declared but not attached, skipping\n",
 +					 adr_dev->adr);
++				/* num_devs was sized from every ACPI endpoint,
++				 * ghost included; keep it in step with the
++				 * codec_conf entries actually created */
++				*num_devs -= adr_dev->num_endpoints;
 +				continue;
 +			}
 +
@@ -132,15 +143,18 @@
  			if (!codec_info)
  				return -EINVAL;
  
-+			/* With the MIC DAI added, hda.c no longer numbers the
-+			 * rt1320 (it only numbers purely-amp codecs), but the
-+			 * amp route init and UCM both require a -1/-2 suffix.
-+			 * Renumber attached amps here, once per device, in
-+			 * order; ghost devices have already been filtered
-+			 * out above. */
++			/* hda.c names the amp either "rt1320" (when the MIC
++			 * DAI makes it not purely an amp) or "rt1320-<n>" in
++			 * ACPI order, which is "rt1320-2" when the ghost
++			 * comes first. The amp route init and UCM both need
++			 * a dense -1/-2 sequence, so renumber attached amps
++			 * here in order; ghosts were filtered out above. */
 +			dev_prefix = adr_dev->name_prefix;
 +			if (codec_info->dais[0].dai_type == SOC_SDW_DAI_TYPE_AMP &&
-+			    !strcmp(adr_dev->name_prefix, codec_info->name_prefix)) {
++			    !strncmp(dev_prefix, codec_info->name_prefix,
++				     strlen(codec_info->name_prefix)) &&
++			    (dev_prefix[strlen(codec_info->name_prefix)] == '\0' ||
++			     dev_prefix[strlen(codec_info->name_prefix)] == '-')) {
 +				dev_prefix = devm_kasprintf(dev, GFP_KERNEL, "%s-%d",
 +							    codec_info->name_prefix,
 +							    ++amp_renum);
@@ -151,7 +165,7 @@
  			for (j = 0; j < codec_info->aux_num; j++) {
  				soc_aux->dlc.name = codec_info->auxs[j].codec_name;
  				soc_aux++;
-@@ -1617,7 +1718,7 @@
+@@ -1633,7 +1748,7 @@
  				dev_dbg(dev, "Adding prefix %s for %s\n",
  					adr_dev->name_prefix, codec_name);
  
@@ -160,7 +174,7 @@
  
  				soc_end->link_mask = adr_link->mask;
  				soc_end->codec_name = codec_name;
-@@ -1627,7 +1728,12 @@
+@@ -1643,7 +1758,12 @@
  			}
  		}
  

@@ -11,5 +11,8 @@
 CARD="$(aplay -l 2>/dev/null | awk -F'[ :]' '/sofsoundwire/{print $2; exit}')"
 [ -z "$CARD" ] && exit 0
 
-amixer -c "$CARD" sset 'rt1320-2 OT23 L' on >/dev/null 2>&1
-amixer -c "$CARD" sset 'rt1320-2 OT23 R' on >/dev/null 2>&1
+# rt1320-1 with the renumbering in patch 0002, rt1320-2 on older builds
+for AMP in rt1320-1 rt1320-2; do
+  amixer -c "$CARD" sset "$AMP OT23 L" on >/dev/null 2>&1
+  amixer -c "$CARD" sset "$AMP OT23 R" on >/dev/null 2>&1
+done

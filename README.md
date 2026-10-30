@@ -53,7 +53,8 @@ To later allow a kernel update on purpose: remove
 **Working:**
 - Keyboard, battery, fan, platform profile
 - Ambient light sensor
-- Speakers (raw ALSA only — see below)
+- Speakers, including PipeWire-routed audio (browsers, GNOME, most apps) —
+  PipeWire now exposes separate Speaker / Headphones sinks
 - Touchpad: cursor, drag, scroll, right-click (two-finger tap, or corner-
   press if enabled in Zorin's touchpad settings)
 - Power button wake from s2idle (tested: suspend, then power button wakes it)
@@ -62,8 +63,6 @@ To later allow a kernel update on purpose: remove
   degrades to mouse-only after first sleep, no gestures/drag/right-click)
 
 **Not working:**
-- PipeWire-routed audio (browsers, most apps) — silent. Raw ALSA works
-  (`configs/etc/asound.conf`)
 - Webcam — sensor driver (`ov02c10`) and IPU7 kernel pipeline load fine,
   32 raw `/dev/videoN` nodes exist, but no working image. Root cause:
   `cam -l` (libcamera) reports "No IPA found" — confirmed via filesystem
@@ -85,6 +84,14 @@ on newer kernels. The `91-sl7-speaker-unmute.rules` udev rule fixes a
 "ghost amp" issue (amp enables fine, but its output-terminal switches
 default off) — replaced an earlier two-service approach that was more
 fragile and had a permissions bug.
+
+PipeWire audio was silent because the attached amp came up as `rt1320-2`
+(the ghost amp declared first in ACPI took slot 1), so the UCM profile
+didn't match and PipeWire fell back to the "Jack Out" PCM. Patch 0002 now
+renumbers attached amps densely (`rt1320-1`), waits briefly for a real amp
+that is still enumerating before treating it as a ghost, and keeps
+`num_devs` in step with the skipped ghost. The unmute script and status
+check accept either name.
 
 ## Repo layout
 

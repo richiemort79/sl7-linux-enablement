@@ -76,8 +76,9 @@ echo "== Speaker output terminal (rt1320 OT23 L/R) =="
 [[ -f /etc/udev/rules.d/91-sl7-speaker-unmute.rules ]] && echo "OK   udev rule installed" || echo "MISS udev rule not installed"
 SPK_CARD="$(aplay -l 2>/dev/null | awk -F'[ :]' '/sofsoundwire/{print $2; exit}')"
 SPK_CARD="${SPK_CARD:-0}"
-amixer -c "$SPK_CARD" sget 'rt1320-2 OT23 L' 2>/dev/null | grep -q '\[on\]' && echo "OK   OT23 L on" || echo "MISS OT23 L off or card not present"
-amixer -c "$SPK_CARD" sget 'rt1320-2 OT23 R' 2>/dev/null | grep -q '\[on\]' && echo "OK   OT23 R on" || echo "MISS OT23 R off or card not present"
+{ amixer -c "$SPK_CARD" sget 'rt1320-1 OT23 L' || amixer -c "$SPK_CARD" sget 'rt1320-2 OT23 L'; } 2>/dev/null | grep -q '\[on\]' && echo "OK   OT23 L on" || echo "MISS OT23 L off or card not present"
+{ amixer -c "$SPK_CARD" sget 'rt1320-1 OT23 R' || amixer -c "$SPK_CARD" sget 'rt1320-2 OT23 R'; } 2>/dev/null | grep -q '\[on\]' && echo "OK   OT23 R on" || echo "MISS OT23 R off or card not present"
+grep -qs 'slave.pcm "hw:0,2"' /etc/asound.conf && echo "WARN old /etc/asound.conf override present (bypasses PipeWire) — re-run 00-first-install.sh or remove it" || echo "OK   no old asound.conf override"
 
 echo
 echo "== GPE 0xAB mask =="
