@@ -8,7 +8,8 @@ Based on the bring-up work and root-cause analysis from nierdal on
 linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin. The PipeWire
 speaker fix (ghost-amp timeout and `rt1320-1` renumbering in patch 0002) is
 ported from floopflop's Fedora repo,
-https://github.com/floopflop/SL_Intel_Linux.
+https://github.com/floopflop/SL_Intel_Linux, as is the webcam's libcamera
+patch and tuning in `patches/libcamera/`.
 
 ## After a kernel update
 
@@ -62,19 +63,16 @@ To later allow a kernel update on purpose: remove
   press if enabled in Zorin's touchpad settings)
 - Power button wake from s2idle (tested: suspend, then power button wakes it)
 - Clean shutdown with audio patches active (tested: no hang/panic)
+- Webcam in Cheese and other GStreamer apps (`scripts/03-install-libcamera.sh`):
+  floopflop's patched libcamera 0.7.2 in `/usr/local`, using its software
+  ISP. The distro's libcamera 0.2.0 had no IPA for IPU7 ("No IPA found")
 - Touchpad after suspend/resume (iptsd-resume.service — without it,
   degrades to mouse-only after first sleep, no gestures/drag/right-click)
 
 **Not working:**
-- Webcam — sensor driver (`ov02c10`) and IPU7 kernel pipeline load fine,
-  32 raw `/dev/videoN` nodes exist, but no working image. Root cause:
-  `cam -l` (libcamera) reports "No IPA found" — confirmed via filesystem
-  search (`find / -iname "*ipu7*ipa*"`) that no IPA plugin exists
-  anywhere on the system. Installed libcamera is 0.2.0 (Ubuntu noble),
-  which may itself predate solid IPU7 pipeline-handler support — this is
-  very new hardware (Lunar Lake, late 2024/2025). Likely needs a newer
-  libcamera + IPA, not currently packaged for this distro; not a config
-  issue on this machine's end
+- Webcam in non-GStreamer apps — browsers and Zoom use V4L2 or PipeWire
+  camera, and Zorin's PipeWire 1.0.5 has no libcamera plugin, so they
+  don't see it yet
 - Screen brightness control — no effect from keys, GNOME, or direct sysfs
   writes. `i915`/`xe` DPCD kernel params tried, no effect
 
@@ -99,7 +97,7 @@ check accept either name.
 ## Repo layout
 
 ```
-patches/          the 4 kernel/iptsd patches — bundled, verified present
+patches/          kernel/iptsd patches, plus libcamera/ (webcam patch + tuning)
 configs/          config files, mirror their install paths under /etc and /usr
 scripts/          install and rebuild scripts
 iptsd-fork/       placeholder — clone alex-lentz/iptsd here at build time
@@ -145,6 +143,11 @@ After every kernel update (apt will hold the kernel package, but if you
 deliberately upgrade it, or a point release moves you forward):
 ```
 ./scripts/01-rebuild-modules.sh
+```
+
+Webcam (builds patched libcamera 0.7.2 into `/usr/local`, a few minutes):
+```
+./scripts/03-install-libcamera.sh
 ```
 
 Check status of everything:

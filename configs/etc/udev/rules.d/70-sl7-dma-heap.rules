@@ -1,0 +1,7 @@
+# libcamera's software ISP needs a dma-buf allocator for the webcam
+# (/dev/dma_heap/system or /dev/udmabuf). Ubuntu/Zorin leave both root/kvm
+# only, so camera apps fail with "Could not open any dma-buf provider".
+# Grant the logged-in seat user access, as Fedora does. Must sort before
+# 73-seat-late.rules for uaccess to take effect.
+SUBSYSTEM=="dma_heap", KERNEL=="system", TAG+="uaccess"
+KERNEL=="udmabuf", TAG+="uaccess"

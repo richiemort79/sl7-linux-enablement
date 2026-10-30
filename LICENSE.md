@@ -14,6 +14,13 @@ This is a diff against alex-lentz/iptsd (itself a fork of linux-surface's
 iptsd) and is licensed GPL-2.0-or-later, matching iptsd's own license.
 See: https://github.com/linux-surface/iptsd/blob/master/LICENSE
 
+## patches/libcamera/ — webcam (from floopflop/SL_Intel_Linux)
+
+Copied unchanged from https://github.com/floopflop/SL_Intel_Linux (commit
+9f6c109). `libcamera-0.7.2-sl7.patch` modifies libcamera and is
+LGPL-2.1-or-later like libcamera itself. `ov02c10.yaml` (the camera
+tuning file) is CC0-1.0, as marked in its header.
+
 ## configs/ — configuration files
 
 All files under configs/ (systemd units, udev rules, iptsd.d config,
