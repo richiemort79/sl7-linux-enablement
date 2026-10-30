@@ -1,11 +1,11 @@
 This repository contains files under different licenses, matching the
 upstream projects each part modifies.
 
-## patches/0001, 0002, 0003 — Linux kernel patches
+## patches/0001-0003, 0005-0007 — Linux kernel patches
 
 These are diffs against Linux kernel sources (drivers/platform/surface,
-sound/soc/sdw_utils, drivers/media/i2c) and are licensed GPL-2.0, the
-license of the Linux kernel itself. See:
+sound/soc/sdw_utils, drivers/media/i2c, drivers/staging/media/ipu7) and
+are licensed GPL-2.0, the license of the Linux kernel itself. See:
 https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
 ## patches/0004 — iptsd patch

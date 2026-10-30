@@ -63,7 +63,7 @@ fi
 cd "linux-source-$KVER"
 
 declare -A PATCH_OK
-for p in 0001 0005 0002 0006 0003; do
+for p in 0001 0005 0002 0006 0003 0007; do
   patchfile=$(ls "$PATCHDIR/${p}"*.patch)
   echo "-- dry run: $patchfile"
   if patch -p1 --forward --dry-run < "$patchfile"; then
@@ -75,7 +75,7 @@ for p in 0001 0005 0002 0006 0003; do
   fi
 done
 
-for p in 0001 0005 0002 0006 0003; do
+for p in 0001 0005 0002 0006 0003 0007; do
   if [[ "${PATCH_OK[$p]}" -eq 1 ]]; then
     patchfile=$(ls "$PATCHDIR/${p}"*.patch)
     echo "-- applying: $patchfile"
@@ -96,11 +96,13 @@ fi
 [[ "${PATCH_OK[0001]}" -eq 1 ]] && make M=drivers/platform/surface
 [[ "${PATCH_OK[0002]}" -eq 1 ]] && make M=sound/soc/sdw_utils
 [[ "${PATCH_OK[0003]}" -eq 1 ]] && make M=drivers/media/i2c
+[[ "${PATCH_OK[0007]}" -eq 1 ]] && make M=drivers/staging/media/ipu7
 
 sudo mkdir -p /lib/modules/"$KVER"/updates
 [[ "${PATCH_OK[0001]}" -eq 1 ]] && sudo cp drivers/platform/surface/surface_aggregator_registry.ko /lib/modules/"$KVER"/updates/
 [[ "${PATCH_OK[0002]}" -eq 1 ]] && sudo cp sound/soc/sdw_utils/snd-soc-sdw-utils.ko /lib/modules/"$KVER"/updates/
 [[ "${PATCH_OK[0003]}" -eq 1 ]] && sudo cp drivers/media/i2c/ov02c10.ko /lib/modules/"$KVER"/updates/
+[[ "${PATCH_OK[0007]}" -eq 1 ]] && sudo cp drivers/staging/media/ipu7/intel-ipu7-isys.ko /lib/modules/"$KVER"/updates/
 sudo depmod -a
 
 echo "Done. Reboot to load the rebuilt modules."

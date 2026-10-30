@@ -1,0 +1,51 @@
+--- a/drivers/staging/media/ipu7/ipu7-isys-queue.c
++++ b/drivers/staging/media/ipu7/ipu7-isys-queue.c
+@@ -47,6 +47,21 @@
+ 	return 0;
+ }
+ 
++/*
++ * The ISYS writes capture buffers through the IPU MMU without snooping the
++ * CPU caches, and the buffers are only flushed once, when they are mapped.
++ * Cache lines filled by the CPU from the previous frame in the same buffer
++ * would otherwise survive the next DMA and be returned as stale data.
++ */
++static void ipu7_isys_buf_cache_sync(struct vb2_buffer *vb)
++{
++	struct ipu7_isys *isys = vb2_get_drv_priv(vb->vb2_queue);
++	struct sg_table *sg = vb2_dma_sg_plane_desc(vb, 0);
++
++	if (sg)
++		ipu7_dma_sync_sgtable(isys->adev, sg);
++}
++
+ static void ipu7_isys_buf_cleanup(struct vb2_buffer *vb)
+ {
+ 	struct ipu7_isys *isys = vb2_get_drv_priv(vb->vb2_queue);
+@@ -100,9 +115,18 @@
+ 		av->vdev.name, bytesperline, height);
+ 	vb2_set_plane_payload(vb, 0, bytesperline * height);
+ 
++	/* Nothing stale may remain in the caches before the DMA fills the buffer. */
++	ipu7_isys_buf_cache_sync(vb);
++
+ 	return 0;
+ }
+ 
++static void ipu7_isys_buf_finish(struct vb2_buffer *vb)
++{
++	/* Drop whatever the caches hold for the buffer now that the DMA is done. */
++	ipu7_isys_buf_cache_sync(vb);
++}
++
+ /*
+  * Queue a buffer list back to incoming or active queues. The buffers
+  * are removed from the buffer list.
+@@ -790,6 +814,7 @@
+ 	.queue_setup = ipu7_isys_queue_setup,
+ 	.buf_init = ipu7_isys_buf_init,
+ 	.buf_prepare = ipu7_isys_buf_prepare,
++	.buf_finish = ipu7_isys_buf_finish,
+ 	.buf_cleanup = ipu7_isys_buf_cleanup,
+ 	.start_streaming = start_streaming,
+ 	.stop_streaming = stop_streaming,

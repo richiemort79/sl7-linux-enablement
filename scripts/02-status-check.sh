@@ -8,7 +8,7 @@ uname -r
 
 echo
 echo "== Out-of-tree modules loaded =="
-for m in surface_aggregator_registry snd_soc_sdw_utils ov02c10; do
+for m in surface_aggregator_registry snd_soc_sdw_utils ov02c10 intel_ipu7_isys; do
   if lsmod | grep -q "^$m"; then
     echo "OK   $m loaded"
   else

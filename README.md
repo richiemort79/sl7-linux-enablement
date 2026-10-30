@@ -9,12 +9,14 @@ linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin. The PipeWire
 speaker fix (ghost-amp timeout and `rt1320-1` renumbering in patch 0002) is
 ported from floopflop's Fedora repo,
 https://github.com/floopflop/SL_Intel_Linux, as is the webcam's libcamera
-patch and tuning in `patches/libcamera/` and the 12 MHz PLL rescaling in
-patch 0003 (webcam 9.4 -> ~30 fps).
+patch and tuning in `patches/libcamera/`, the 12 MHz PLL rescaling in
+patch 0003 (webcam 9.4 -> ~30 fps) and the IPU7 capture cache sync in
+patch 0007 (stale streaks behind moving objects).
 
 ## After a kernel update
 
-The 3 out-of-tree modules (keyboard/battery, audio, webcam) are built for
+The 4 out-of-tree modules (keyboard/battery, audio, webcam sensor, IPU7
+capture) are built for
 one specific kernel version. After any kernel update, they silently fall
 back to the stock (unpatched) versions — keyboard/battery/audio/webcam
 will stop working with no error, until you rebuild:
@@ -22,7 +24,7 @@ will stop working with no error, until you rebuild:
 ```
 cd scripts && ./01-rebuild-modules.sh
 sudo modprobe -r surface_aggregator_registry && sudo modprobe surface_aggregator_registry
-sudo modprobe -r snd_soc_sdw_utils ov02c10 && sudo modprobe snd_soc_sdw_utils ov02c10
+sudo modprobe -r snd_soc_sdw_utils ov02c10 intel_ipu7_isys && sudo modprobe snd_soc_sdw_utils ov02c10 intel_ipu7_isys
 ```
 
 To stop this happening automatically, pin the kernel. **`apt-mark hold`
@@ -177,7 +179,7 @@ relying on it day-to-day.
 
 ## License note
 
-See `LICENSE.md` for the full breakdown (patches 0001-0003 are GPL-2.0,
+See `LICENSE.md` for the full breakdown (kernel patches 0001-0003 and 0005-0007 are GPL-2.0,
 patch 0004 is GPL-2.0-or-later, configs/ and scripts/ are CC0). Nothing in
 this repo contains Microsoft code, firmware, or ACPI table dumps — those
 are not redistributable and are not included.
