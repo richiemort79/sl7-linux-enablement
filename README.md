@@ -2,7 +2,9 @@
 
 Personal build/maintenance repo for keeping a Surface Laptop 7 for Business
 (Intel Core Ultra 7 268V, Lunar Lake) fully working on Zorin OS (Ubuntu-based)
-with the stock distro kernel, no linux-surface kernel required.
+with either the stock Ubuntu kernel or the linux-surface kernel (see
+"Kernels" below; this machine now runs linux-surface 7.2 to get rid of
+suspend hangs).
 
 Based on the bring-up work and root-cause analysis from nierdal on
 linux-surface/linux-surface#1710, adapted for Ubuntu/Zorin. The PipeWire
@@ -13,13 +15,76 @@ patch and tuning in `patches/libcamera/`, the 12 MHz PLL rescaling in
 patch 0003 (webcam 9.4 -> ~30 fps) and the IPU7 capture cache sync in
 patch 0007 (stale streaks behind moving objects).
 
+## Kernels
+
+Two kernels are supported, each with its own DKMS package
+(`./scripts/04-setup-dkms.sh` registers both):
+
+| Kernel | DKMS package | Sources |
+|---|---|---|
+| Ubuntu `-generic` (7.0) | `sl7-enablement` (`dkms/`) | kernel.org vX.Y + Ubuntu's `diff.gz` + `patches/000[1-7]` |
+| linux-surface `-surface` (7.2+) | `sl7-surface` (`dkms-surface/`) | kernel.org vX.Y.Z + floopflop's `port-patches.py` + v4l2loopback |
+
+**Why linux-surface 7.2:** on Ubuntu 7.0.0-30 the lid sometimes never
+woke from suspend (7 hangs in ~250 suspends; one left a BERT firmware
+record), matching linux-surface#1710 where 7.2 removed the hangs. The
+`sl7-suspend-log` sleep hook counts hangs per kernel
+(`./scripts/02-status-check.sh`).
+
+Setting it up (Ubuntu kernels stay blocked by the APT pin below):
+
+```
+wget -qO - https://raw.githubusercontent.com/linux-surface/linux-surface/master/pkg/keys/surface.asc | gpg --dearmor | sudo dd of=/etc/apt/trusted.gpg.d/linux-surface.gpg
+echo "deb [arch=amd64] https://pkg.surfacelinux.com/debian release main" | sudo tee /etc/apt/sources.list.d/linux-surface.list
+printf 'Package: linux-image-surface linux-headers-surface linux-image-*-surface linux-headers-*-surface\nPin: origin pkg.surfacelinux.com\nPin-Priority: 500\n' | sudo tee /etc/apt/preferences.d/linux-surface
+sudo apt update
+sudo apt install --no-install-recommends linux-image-surface linux-headers-surface
+./scripts/04-setup-dkms.sh      # before rebooting into it
+```
+
+Gotchas, all handled by `dkms-surface/` and `04-setup-dkms.sh`:
+- `--no-install-recommends` keeps linux-surface's own `iptsd` out (we run
+  the patched alex-lentz fork).
+- linux-surface maps `MSHW0551` to the **Snapdragon** SAM node group.
+  floopflop's fix adds an Intel entry, but the first match wins, so on a
+  surface-patched registry it would silently do nothing. We build the
+  registry from kernel.org sources instead (linux-surface's only change to
+  that file is that line), and `sl7-prebuild.sh` checks there's exactly one
+  `MSHW0551` entry, mapped to the Intel group.
+- linux-surface kernels are built with gcc 11 (Ubuntu 22.04); `sl7-make.sh`
+  builds with the matching `gcc-11`.
+- linux-surface doesn't ship `v4l2loopback` (needed for the Chrome virtual
+  webcam), so `sl7-surface` builds upstream v0.15.3 as a fifth module.
+- None of these modules declare a version, so DKMS treats ours as "not
+  newer" than the kernel's and silently keeps the stock module (`dkms
+  status` shows "Diff between built and installed module").
+  `04-setup-dkms.sh` adds both packages to
+  `/usr/share/dkms/modules_to_force_install/` to skip that check, also for
+  future kernels.
+- The registry module lives in the initramfs, so it's regenerated after
+  each DKMS install.
+
+After a kernel update, before rebooting: `dkms status` should list the new
+kernel as `installed` with no warnings.
+
 ## After a kernel update
 
 The 4 out-of-tree modules (keyboard/battery, audio, webcam sensor, IPU7
-capture) are built for
-one specific kernel version. After any kernel update, they silently fall
-back to the stock (unpatched) versions — keyboard/battery/audio/webcam
-will stop working with no error, until you rebuild:
+capture) are built for one specific kernel version. Without DKMS, after
+any kernel update they silently fall back to the stock (unpatched)
+versions — keyboard/battery/audio/webcam stop working with no error.
+
+**Recommended: DKMS** (`./scripts/04-setup-dkms.sh`). Every new kernel
+gets the modules rebuilt automatically when it's installed. The build
+recreates Ubuntu's exact source for that kernel (kernel.org vX.Y plus
+Ubuntu's own `diff.gz` from the archive, which carries backports our audio
+patches depend on) and applies our patches; a patch Ubuntu has already
+picked up is skipped. Needs network at kernel install time; if it fails,
+`sl7-dkms-retry.service` retries at the next boot (then reboot once more).
+Check with `dkms status`. With DKMS in place, the kernel pin below isn't
+needed and you keep getting kernel security updates.
+
+Without DKMS, rebuild by hand after each kernel update:
 
 ```
 cd scripts && ./01-rebuild-modules.sh
@@ -27,8 +92,8 @@ sudo modprobe -r surface_aggregator_registry && sudo modprobe surface_aggregator
 sudo modprobe -r snd_soc_sdw_utils ov02c10 intel_ipu7_isys && sudo modprobe snd_soc_sdw_utils ov02c10 intel_ipu7_isys
 ```
 
-To stop this happening automatically, pin the kernel. **`apt-mark hold`
-is not enough** — confirmed on real hardware that it only blocks the
+Or, without DKMS, stop kernels changing at all by pinning the kernel.
+**`apt-mark hold` is not enough** — confirmed on real hardware that it only blocks the
 *installed* kernel packages from being upgraded/removed, but does
 nothing to stop a brand new kernel package (different version, different
 package name) from being installed fresh alongside it, which
@@ -107,6 +172,8 @@ check accept either name.
 patches/          kernel/iptsd patches, plus libcamera/ (webcam patch + tuning)
 configs/          config files, mirror their install paths under /etc and /usr
 scripts/          install and rebuild scripts
+dkms/             DKMS package for Ubuntu -generic kernels
+dkms-surface/     DKMS package for linux-surface kernels (floopflop's scripts + ours)
 iptsd-fork/       placeholder — clone alex-lentz/iptsd here at build time
 ```
 
@@ -156,6 +223,11 @@ Webcam (builds patched libcamera 0.7.2 into `/usr/local`, a few minutes;
 also sets up the `sl7-webcam` virtual webcam for Chrome):
 ```
 ./scripts/03-install-libcamera.sh
+```
+
+Automatic module rebuilds for new kernels (see "After a kernel update"):
+```
+./scripts/04-setup-dkms.sh
 ```
 
 Check status of everything:

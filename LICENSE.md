@@ -21,6 +21,14 @@ Copied unchanged from https://github.com/floopflop/SL_Intel_Linux (commit
 LGPL-2.1-or-later like libcamera itself. `ov02c10.yaml` (the camera
 tuning file) is CC0-1.0, as marked in its header.
 
+## dkms-surface/ — linux-surface kernel module build
+
+`fetch-sources.sh` and `port-patches.py` are copied unchanged from
+https://github.com/floopflop/SL_Intel_Linux (`kernel/`, commit cb5c61e)
+and are GPL-2.0-or-later like that repository; the kernel edits they apply
+are GPL-2.0 like the files they modify. `sl7-prebuild.sh`, `sl7-make.sh`
+and `dkms.conf` are CC0 like scripts/.
+
 ## configs/ — configuration files
 
 All files under configs/ (systemd units, udev rules, iptsd.d config,

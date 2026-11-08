@@ -1,0 +1,16 @@
+# DKMS builds the patched modules when a kernel is installed, but that
+# needs network (sources and Ubuntu's diff are downloaded). If it failed,
+# retry at boot once the network is up; reboot again to load the result.
+# Covers both sl7-enablement (-generic) and sl7-surface (-surface).
+[Unit]
+Description=Retry the SL7 DKMS module build for the running kernel
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# The keyboard/battery module is in the initramfs, so refresh it too.
+ExecStart=/bin/sh -c 'kv="$(uname -r)"; dkms status -k "$kv" | grep -q -E "^sl7-(enablement|surface).*installed" || { dkms autoinstall -k "$kv" && update-initramfs -u -k "$kv"; }'
+
+[Install]
+WantedBy=multi-user.target
