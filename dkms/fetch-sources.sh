@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DKMS PRE_BUILD: lay out the sources of the four patched modules for one
+# DKMS PRE_BUILD: lay out the sources of the five patched modules for one
 # Ubuntu kernel, exactly as Ubuntu builds them, then apply our patches.
 #
 # Ubuntu's kernel source package is upstream vX.Y plus one diff.gz (stable
@@ -90,23 +90,26 @@ headers_of() {  # local "..." includes of the given files
 # --- lay out the sources --------------------------------------------------
 # Gather pristine upstream copies of every file needed, then apply Ubuntu's
 # diff to them once.
+G=drivers/gpu/drm/display      # drm_display_helper, patch 0008 (brightness)
 PREFIXES=(drivers/platform/surface/surface_aggregator_registry.c drivers/media/i2c/ov02c10.c
-          sound/soc/sdw_utils/ sound/soc/codecs/ $I/)
+          sound/soc/sdw_utils/ sound/soc/codecs/ $I/ $G/)
 rm -rf "$SRC"; mkdir -p "$SRC"
-for f in "${PREFIXES[@]:0:2}" sound/soc/sdw_utils/Makefile $I/Makefile; do
+for f in "${PREFIXES[@]:0:2}" sound/soc/sdw_utils/Makefile $I/Makefile $G/Makefile; do
   try_fetch "$f" || { echo "missing upstream file $f at $TAG"; exit 1; }
 done
 
 # Object lists come from Ubuntu's Makefiles (it may add objects).
 mkdir -p "$SRC/.mk"
-apply_ubuntu sound/soc/sdw_utils/Makefile $I/Makefile
+apply_ubuntu sound/soc/sdw_utils/Makefile $I/Makefile $G/Makefile
 SDW_OBJS=$(objs_of "$SRC/sound/soc/sdw_utils/Makefile" 'snd-soc-sdw-utils')
 ISYS_OBJS=$(objs_of "$SRC/$I/Makefile" 'intel-ipu7-isys')
-try_fetch sound/soc/sdw_utils/Makefile; try_fetch $I/Makefile   # back to upstream
+DH_OBJS=$(objs_of "$SRC/$G/Makefile" 'drm_display_helper')
+try_fetch sound/soc/sdw_utils/Makefile; try_fetch $I/Makefile; try_fetch $G/Makefile   # back to upstream
 
 # A file Ubuntu adds doesn't exist upstream; its diff creates it.
 for o in $SDW_OBJS; do try_fetch "sound/soc/sdw_utils/${o%.o}.c" || true; done
 for o in $ISYS_OBJS; do try_fetch "$I/${o%.o}.c" || true; done
+for o in $DH_OBJS; do try_fetch "$G/${o%.o}.c" || true; done
 for f in $(ubuntu_files "${PREFIXES[@]}"); do
   [[ -e "$SRC/$f" ]] || try_fetch "$f" || true
 done
@@ -120,6 +123,9 @@ fetch_headers() {
     for h in $(headers_of "$SRC/$I"/*.c "$SRC/$I"/*.h "$SRC/$I"/abi/*.h); do
       [[ -e "$SRC/$I/$h" || -e "$SRC/$I/abi/$h" ]] || try_fetch "$I/$h" || try_fetch "$I/abi/$h" || true
     done
+    for h in $(headers_of "$SRC/$G"/*.c); do
+      [[ -e "$SRC/$G/$h" ]] || try_fetch "$G/$h" || true
+    done
   done
 }
 fetch_headers
@@ -128,7 +134,7 @@ apply_ubuntu "${PREFIXES[@]}" || { echo "Ubuntu's diff did not apply to the $TAG
 fetch_headers   # anything newly included by Ubuntu's changes
 
 # --- our patches ----------------------------------------------------------
-for p in 0001 0005 0002 0006 0003 0007; do
+for p in 0001 0005 0002 0006 0003 0007 0008; do
   pf=$(ls "$D"/patches/"$p"-*.patch)
   if patch -d "$SRC" -p1 -s --forward --dry-run -i "$pf" </dev/null >/dev/null 2>&1; then
     echo "-- applying $(basename "$pf")"
@@ -142,8 +148,8 @@ for p in 0001 0005 0002 0006 0003 0007; do
   fi
 done
 
-# --- Kbuild layout: build only the four modules ---------------------------
-echo 'obj-m += drivers/platform/surface/ drivers/media/i2c/ sound/soc/sdw_utils/ drivers/staging/media/ipu7/' > "$SRC/Kbuild"
+# --- Kbuild layout: build only the five modules ---------------------------
+echo 'obj-m += drivers/platform/surface/ drivers/media/i2c/ sound/soc/sdw_utils/ drivers/staging/media/ipu7/ drivers/gpu/drm/display/' > "$SRC/Kbuild"
 echo 'obj-m += surface_aggregator_registry.o' > "$SRC/drivers/platform/surface/Kbuild"
 echo 'obj-m += ov02c10.o' > "$SRC/drivers/media/i2c/Kbuild"
 sed 's/^obj-\$(CONFIG_SND_SOC_SDW_UTILS)/obj-m/' "$SRC/sound/soc/sdw_utils/Makefile" > "$SRC/sound/soc/sdw_utils/Kbuild"
@@ -151,4 +157,6 @@ sed 's/^obj-\$(CONFIG_SND_SOC_SDW_UTILS)/obj-m/' "$SRC/sound/soc/sdw_utils/Makef
 sed -e 's/^obj-\$(CONFIG_VIDEO_INTEL_IPU7)[[:space:]]*+= intel-ipu7\.o/obj-n += intel-ipu7.o/' \
     -e 's/^obj-\$(CONFIG_VIDEO_INTEL_IPU7)[[:space:]]*+= intel-ipu7-isys\.o/obj-m += intel-ipu7-isys.o/' \
     "$SRC/$I/Makefile" > "$SRC/$I/Kbuild"
+# only drm_display_helper.ko, not drm_dp_aux_bus.ko
+grep -v 'DRM_DISPLAY_DP_AUX_BUS' "$SRC/$G/Makefile" > "$SRC/$G/Kbuild"
 echo "sources ready in $SRC"

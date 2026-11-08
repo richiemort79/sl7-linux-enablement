@@ -5,7 +5,7 @@
 #
 # Two DKMS packages, each limited to its kind of kernel:
 #   sl7-enablement (dkms/)        Ubuntu -generic kernels: kernel.org vX.Y
-#                                 + Ubuntu's diff.gz + patches/000[1-7]
+#                                 + Ubuntu's diff.gz + patches/000[1-8]
 #   sl7-surface    (dkms-surface/) linux-surface kernels: kernel.org vX.Y.Z
 #                                 + floopflop's fixes + v4l2loopback
 #                                 + drm_display_helper (patch 0008),
@@ -56,9 +56,10 @@ echo "sl7-enablement_version-override sl7-surface_version-override" \
 
 register sl7-enablement dkms dkms.conf fetch-sources.sh
 sudo install -d "/usr/src/sl7-enablement-$VER/patches"
-for p in 0001 0002 0003 0005 0006 0007; do
+for p in 0001 0002 0003 0005 0006 0007 0008; do
   sudo install -m 644 "$REPO_ROOT"/patches/"$p"-*.patch "/usr/src/sl7-enablement-$VER/patches/"
 done
+sudo install -m 755 "$REPO_ROOT/dkms-surface/check-crcs.py" "/usr/src/sl7-enablement-$VER/"
 register sl7-surface dkms-surface dkms.conf fetch-sources.sh port-patches.py sl7-prebuild.sh sl7-make.sh check-crcs.py
 sudo install -d "/usr/src/sl7-surface-$VER/patches"
 sudo install -m 644 "$REPO_ROOT"/patches/0008-*.patch "/usr/src/sl7-surface-$VER/patches/"

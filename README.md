@@ -22,7 +22,7 @@ Two kernels are supported, each with its own DKMS package
 
 | Kernel | DKMS package | Sources |
 |---|---|---|
-| Ubuntu `-generic` (7.0) | `sl7-enablement` (`dkms/`) | kernel.org vX.Y + Ubuntu's `diff.gz` + `patches/000[1-7]` |
+| Ubuntu `-generic` (7.0) | `sl7-enablement` (`dkms/`) | kernel.org vX.Y + Ubuntu's `diff.gz` + `patches/000[1-8]` |
 | linux-surface `-surface` (7.2+) | `sl7-surface` (`dkms-surface/`) | kernel.org vX.Y.Z + floopflop's `port-patches.py` + v4l2loopback + patch 0008 (`drm_display_helper`, brightness) |
 
 **Why linux-surface 7.2:** on Ubuntu 7.0.0-30 the lid sometimes never
@@ -139,16 +139,14 @@ To later allow a kernel update on purpose: remove
   v4l2loopback `/dev/video50`; pick "Surface Camera" in Chrome's camera
   settings, ignore the raw "Intel IPU7" entries. The camera and its light
   stay on until `sl7-webcam off`
-- Screen brightness (keys, slider, auto-brightness) on linux-surface
-  kernels, with patch 0008 — see "Screen brightness" below
+- Screen brightness (keys, slider, auto-brightness), with patch 0008 —
+  see "Screen brightness" below
 - Touchpad after suspend/resume (iptsd-resume.service — without it,
   degrades to mouse-only after first sleep, no gestures/drag/right-click)
 
 **Not working:**
 - Webcam on demand in PipeWire-camera apps — Zorin's PipeWire 1.0.5 has
   no libcamera plugin, hence the switch-it-on-yourself virtual webcam
-- Screen brightness on the Ubuntu `-generic` kernel (patch 0008 is only
-  built for linux-surface kernels so far)
 
 ## Screen brightness
 
@@ -168,11 +166,11 @@ sudo dd if=/dev/drm_dp_aux0 bs=1 skip=$((0x721)) count=3 2>/dev/null | od -An -t
 
 Patch 0008 makes `drm_edp_backlight_set_level()` (in `drm_display_helper`)
 put the panel back into DPCD mode whenever it has fallen out of it, so the
-first brightness change after any power-up fixes it. `sl7-surface` builds
-the patched `drm_display_helper.ko` and fails the build if any exported
-symbol CRC differs from the kernel's (the graphics driver would otherwise
-refuse to load). Tested: works after boot, after a DPMS off/on cycle and
-after suspend. The kernel command line has `xe.enable_dpcd_backlight=2`
+first brightness change after any power-up fixes it. Both DKMS packages
+build the patched `drm_display_helper.ko` and fail the build if any
+exported symbol CRC differs from the kernel's (the graphics driver would
+otherwise refuse to load). Tested on 7.2.15-1-surface after boot, after a
+DPMS off/on cycle and after suspend; on 7.0.0-30-generic after boot. The kernel command line has `xe.enable_dpcd_backlight=2`
 (force VESA), which is what was tested.
 
 ## Patch notes
