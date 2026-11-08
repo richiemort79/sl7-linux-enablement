@@ -169,8 +169,8 @@ put the panel back into DPCD mode whenever it has fallen out of it, so the
 first brightness change after any power-up fixes it. Both DKMS packages
 build the patched `drm_display_helper.ko` and fail the build if any
 exported symbol CRC differs from the kernel's (the graphics driver would
-otherwise refuse to load). Tested on 7.2.15-1-surface after boot, after a
-DPMS off/on cycle and after suspend; on 7.0.0-30-generic after boot. The kernel command line has `xe.enable_dpcd_backlight=2`
+otherwise refuse to load). Tested on 7.2.15-1-surface and 7.0.0-30-generic:
+works after boot, after a DPMS off/on cycle and after suspend. The kernel command line has `xe.enable_dpcd_backlight=2`
 (force VESA), which is what was tested.
 
 ## Patch notes
