@@ -1,0 +1,8 @@
+#!/bin/sh
+# Log every suspend/resume to /var/log/sl7-suspend.log and sync before
+# sleeping, so the "pre" line survives a hang. A "pre" with no "post"
+# after it is a suspend the machine never woke from (see
+# scripts/02-status-check.sh). Counting "PM: suspend entry/exit" in the
+# journal undercounts: a hang can happen before the kernel logs anything.
+printf '%s %s %s kern=%s\n' "$(date -Is)" "$1" "$2" "$(uname -r)" >> /var/log/sl7-suspend.log
+sync

@@ -285,6 +285,9 @@ if [[ -f "$CONFDIR/usr/lib/systemd/system-sleep/btintel-pcie.sh" ]]; then
   sudo cp "$CONFDIR/usr/lib/systemd/system-sleep/btintel-pcie.sh" /usr/lib/systemd/system-sleep/
   sudo chmod +x /usr/lib/systemd/system-sleep/btintel-pcie.sh
 fi
+if [[ -f "$CONFDIR/usr/lib/systemd/system-sleep/sl7-suspend-log" ]]; then
+  sudo install -m 755 "$CONFDIR/usr/lib/systemd/system-sleep/sl7-suspend-log" /usr/lib/systemd/system-sleep/
+fi
 if [[ -f "$CONFDIR/usr/local/bin/sl7-speaker-unmute.sh" ]]; then
   sudo mkdir -p /usr/local/bin
   sudo cp "$CONFDIR/usr/local/bin/sl7-speaker-unmute.sh" /usr/local/bin/

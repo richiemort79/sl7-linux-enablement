@@ -95,3 +95,17 @@ if [[ -x /usr/lib/systemd/system-sleep/btintel-pcie.sh ]]; then
 else
   echo "MISS btintel-pcie.sh missing or not executable"
 fi
+
+echo
+echo "== Suspend hangs (sl7-suspend-log hook) =="
+LOG=/var/log/sl7-suspend.log
+if [[ ! -x /usr/lib/systemd/system-sleep/sl7-suspend-log ]]; then
+  echo "MISS suspend log hook not installed"
+elif [[ ! -s $LOG ]]; then
+  echo "OK   hook installed, no suspends logged yet"
+else
+  # A "pre" not followed by a "post" never woke up. The last line being
+  # "pre" can't happen while we're running, so that's a hang too.
+  awk '$2=="pre"{if(open) hang[k]++; open=1; k=$4; n[k]++} $2=="post"{open=0}
+       END{if(open) hang[k]++; for(k in n) printf "     %s: %d suspends, %d hangs\n", k, n[k], hang[k]+0}' "$LOG" | sort
+fi
