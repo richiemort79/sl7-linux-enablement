@@ -8,6 +8,12 @@ sound/soc/sdw_utils, drivers/media/i2c, drivers/staging/media/ipu7) and
 are licensed GPL-2.0, the license of the Linux kernel itself. See:
 https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
+## patches/0008 — drm_display_helper patch
+
+A diff against `drivers/gpu/drm/display/drm_dp_helper.c`, which carries
+the MIT-style license in its header; the patch is offered under the same
+terms (and GPL-2.0, as part of the kernel).
+
 ## patches/0004 — iptsd patch
 
 This is a diff against alex-lentz/iptsd (itself a fork of linux-surface's
@@ -26,8 +32,8 @@ tuning file) is CC0-1.0, as marked in its header.
 `fetch-sources.sh` and `port-patches.py` are copied unchanged from
 https://github.com/floopflop/SL_Intel_Linux (`kernel/`, commit cb5c61e)
 and are GPL-2.0-or-later like that repository; the kernel edits they apply
-are GPL-2.0 like the files they modify. `sl7-prebuild.sh`, `sl7-make.sh`
-and `dkms.conf` are CC0 like scripts/.
+are GPL-2.0 like the files they modify. `sl7-prebuild.sh`, `sl7-make.sh`,
+`check-crcs.py` and `dkms.conf` are CC0 like scripts/.
 
 ## configs/ — configuration files
 

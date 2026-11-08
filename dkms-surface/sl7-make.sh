@@ -20,3 +20,8 @@ elif [[ -n "$ver" ]]; then
 fi
 echo "== building with $CC =="
 make -C "$KDIR" M="$D/src" CC="$CC" modules -j"$(nproc)"
+
+# A drm_display_helper whose symbol CRCs differ from the kernel's would stop
+# the graphics driver loading; fail the build rather than install it.
+python3 -I "$D/check-crcs.py" "$D/src/Module.symvers" "$KDIR/Module.symvers" \
+  drivers/gpu/drm/display/drm_display_helper

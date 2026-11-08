@@ -1,0 +1,29 @@
+--- a/drivers/gpu/drm/display/drm_dp_helper.c
++++ b/drivers/gpu/drm/display/drm_dp_helper.c
+@@ -4209,6 +4209,26 @@
+ 	if (!(bl->aux_set || bl->luminance_set))
+ 		return 0;
+ 
++	/*
++	 * Some panels (Surface Laptop 7 Intel, Sharp LQ150P1JX61) reset their
++	 * backlight mode register to PWM after drm_edp_backlight_enable() put it
++	 * in DPCD mode, apparently while still powering up, and then ignore
++	 * DPCD brightness writes. Put the panel back into DPCD mode if it has
++	 * fallen out of it.
++	 */
++	if (bl->aux_set && !bl->luminance_set) {
++		u8 mode;
++
++		if (drm_dp_dpcd_read_byte(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, &mode) >= 0 &&
++		    (mode & DP_EDP_BACKLIGHT_CONTROL_MODE_MASK) != DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD) {
++			drm_dbg_kms(aux->drm_dev, "%s: backlight mode reset to 0x%02x, restoring DPCD mode\n",
++				    aux->name, mode);
++			mode &= ~DP_EDP_BACKLIGHT_CONTROL_MODE_MASK;
++			mode |= DP_EDP_BACKLIGHT_CONTROL_MODE_DPCD;
++			drm_dp_dpcd_write_byte(aux, DP_EDP_BACKLIGHT_MODE_SET_REGISTER, mode);
++		}
++	}
++
+ 	if (bl->luminance_set) {
+ 		level = level * 1000;
+ 		level &= 0xffffff;

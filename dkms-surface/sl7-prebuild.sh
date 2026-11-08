@@ -10,6 +10,9 @@
 #    webcam needs it)
 #  - a check that exactly one MSHW0551 entry exists: with two, the first
 #    wins and the Intel group would silently be ignored
+#  - drm_display_helper with patches/0008: the panel drops out of DPCD
+#    backlight mode after powering up, so brightness changes are ignored;
+#    the patch restores the mode whenever a level is written
 #
 # Usage: sl7-prebuild.sh <kernelver>
 set -euo pipefail
@@ -40,4 +43,36 @@ mkdir -p "$D/src/v4l2loopback"
 tar -xzf "$TB" -C "$D/src/v4l2loopback" --strip-components=1
 echo 'obj-m += v4l2loopback.o' > "$D/src/v4l2loopback/Kbuild"
 echo 'obj-m += v4l2loopback/' >> "$D/src/Kbuild"
-echo "sources ready (5 modules)"
+echo "== drm_display_helper (patch 0008, brightness) =="
+VER=${KV%%-*}; case $VER in *.*.0) VER=${VER%.0} ;; esac
+TAG="v$VER"
+P=drivers/gpu/drm/display
+KORG=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain
+DC="$CACHE/display-$TAG"
+get() {  # <file in $P>
+  if [[ ! -s "$DC/$1" ]]; then
+    mkdir -p "$DC"
+    curl -sfL --connect-timeout 30 -m 120 --retry 3 -o "$DC/$1.part" "$KORG/$P/$1?h=$TAG" \
+      || { rm -f "$DC/$1.part"; return 1; }
+    mv "$DC/$1.part" "$DC/$1"
+  fi
+  cp "$DC/$1" "$D/src/$P/$1"
+}
+mkdir -p "$D/src/$P"
+get Makefile || { echo "cannot fetch $P/Makefile at $TAG"; exit 1; }
+objs=$(sed -e ':a' -e '/\\$/N; s/\\\n//; ta' "$D/src/$P/Makefile" \
+       | grep -E '^drm_display_helper' | grep -oE '[a-z0-9_]+\.o' | sort -u)
+for o in $objs; do
+  get "${o%.o}.c" || { echo "cannot fetch $P/${o%.o}.c"; exit 1; }
+done
+for h in $(grep -ho '#include "[^"]*"' "$D/src/$P"/*.c | sed 's/#include "//;s/"//' | sort -u); do
+  [[ -e "$D/src/$P/$h" ]] || get "$h" || { echo "cannot fetch $P/$h"; exit 1; }
+done
+patch -d "$D/src" -p1 -s --forward --no-backup-if-mismatch \
+  -i "$D/patches/0008-drm-display-edp-backlight-restore-dpcd-mode.patch" </dev/null \
+  || { echo "patch 0008 did not apply to $TAG"; exit 1; }
+# only drm_display_helper.ko, not drm_dp_aux_bus.ko
+grep -v 'DRM_DISPLAY_DP_AUX_BUS' "$D/src/$P/Makefile" > "$D/src/$P/Kbuild"
+rm "$D/src/$P/Makefile"
+echo 'obj-m += drivers/gpu/drm/display/' >> "$D/src/Kbuild"
+echo "sources ready (6 modules)"
